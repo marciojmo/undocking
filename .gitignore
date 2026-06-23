@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Node / Next.js (web/)
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+*-debug.log*
+
+# Coverage
+coverage/
+htmlcov/
+
+# Editors
+.idea/
+*.swp
+
+# OS
+.DS_Store

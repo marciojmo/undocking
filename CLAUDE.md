@@ -1,0 +1,18 @@
+# CLAUDE.md
+
+Guidance for working in this repository.
+
+## Project
+
+**Ship** — a deployment platform for HTML/Markdown artifacts. Users upload content via REST or MCP, get back a public URL, and content is served at `/{workspace}/{slug}`. Auth is via bearer API keys scoped to a workspace. Designed for AI agents.
+
+- Backend: Python + FastAPI (`api/`)
+- Admin panel: Next.js (`web/`, phase 2)
+- See [`docs/ship-plan.md`](docs/ship-plan.md) for the full implementation plan and architecture.
+
+## Required reading
+
+Follow these docs when writing code:
+
+- [`docs/python_best_practices.md`](docs/python_best_practices.md) — conventions for all Python code (`**/*.py`).
+- [`docs/nextjs_best_practices.md`](docs/nextjs_best_practices.md) — App Router patterns for the Next.js admin panel (`**/*.ts`, `**/*.tsx`).
