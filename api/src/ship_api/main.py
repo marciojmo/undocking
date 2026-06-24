@@ -2,9 +2,13 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.sessions import SessionMiddleware
 
+from .config import settings
 from .logging_config import configure_logging
 from .mcp.server import mcp
+from .routes.admin import router as admin_router
+from .routes.auth import router as auth_router
 from .routes.deployments import router as deployments_router
 from .routes.serve import router as serve_router
 
@@ -20,9 +24,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Ship API", lifespan=lifespan)
+
+# Signs the dashboard session cookie used by the OAuth sign-in flow. Required by
+# request.session in the auth/admin routes.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret,
+    same_site="lax",
+    https_only=False,
+)
+
 app.include_router(deployments_router)
+app.include_router(auth_router)
+app.include_router(admin_router)
 app.mount("/mcp", mcp.streamable_http_app())
 
 # Mounted last: its catch-all "/{workspace_slug}/{slug}" must not shadow the
-# /v1 and /mcp routes registered above.
+# /v1, /auth, /admin, and /mcp routes registered above.
 app.include_router(serve_router)

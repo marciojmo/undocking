@@ -25,12 +25,12 @@ Apply the database schema:
 psql "$DATABASE_URL" -f schema.sql
 ```
 
-The MVP has no workspace/API-key management endpoints (those live in the phase-2
-admin panel), so seed a workspace and key directly. See
-[`schema.sql`](schema.sql) for the table definitions; insert a `users` row, a
-`workspaces` row, and an `api_keys` row whose `key_hash` is the SHA-256 hex
-digest of your raw key and whose `key_prefix` is the first 16 characters of it.
-Keys must start with `sk_live_`.
+You can create workspaces and API keys two ways: through the admin panel
+([`../web`](../web), see the dashboard endpoints below), or by seeding the
+database directly. To seed manually, see [`schema.sql`](schema.sql) for the table
+definitions; insert a `users` row, a `workspaces` row, and an `api_keys` row
+whose `key_hash` is the SHA-256 hex digest of your raw key and whose `key_prefix`
+is the first 16 characters of it. Keys must start with `sk_live_`.
 
 ## Running
 
@@ -49,6 +49,31 @@ All `/v1` endpoints require an `Authorization: Bearer sk_live_...` header.
 | `DELETE` | `/v1/deployments/{id}` | Soft-delete a deployment |
 | `GET` | `/{workspace}/{slug}` | Public serving of a deployed artifact |
 | `*` | `/mcp` | MCP streamable-HTTP endpoint (same auth) |
+
+### Dashboard auth & admin (phase 2)
+
+The admin panel ([`../web`](../web)) signs users in via OAuth and manages
+workspaces and keys. These routes authenticate with a session **cookie** (set
+after sign-in), not the `sk_live_` bearer tokens.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/auth/providers` | Lists configured OAuth providers |
+| `GET` | `/auth/login/{provider}` | Starts the OAuth flow (`github` / `google`) |
+| `GET` | `/auth/callback/{provider}` | OAuth callback; sets the session cookie |
+| `POST` | `/auth/logout` | Clears the session |
+| `GET` | `/auth/me` | Current signed-in user |
+| `GET/POST` | `/admin/workspaces` | List / create the user's workspaces |
+| `GET` | `/admin/workspaces/{id}` | Get a single owned workspace |
+| `GET/POST` | `/admin/workspaces/{id}/keys` | List / issue API keys (raw key shown once) |
+| `DELETE` | `/admin/workspaces/{id}/keys/{key_id}` | Revoke an API key |
+| `GET` | `/admin/workspaces/{id}/deployments` | List the workspace's deployments |
+| `DELETE` | `/admin/workspaces/{id}/deployments/{dep_id}` | Soft-delete a deployment |
+
+To enable sign-in, set `SESSION_SECRET` and at least one provider's OAuth
+credentials in `.env` (see [`.env.example`](.env.example)). The OAuth callback to
+register with the provider is `{PUBLIC_API_URL}/auth/callback/{provider}` (in dev,
+`http://localhost:3000/api/auth/callback/github`).
 
 ### Deploy example
 

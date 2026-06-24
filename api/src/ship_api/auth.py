@@ -1,4 +1,6 @@
 import hashlib
+import secrets
+import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -9,9 +11,44 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .database import get_db
 from .models import ApiKey, Workspace
 
+KEY_PREFIX_LEN = 16
+
 
 def _sha256(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def generate_api_key() -> str:
+    """Returns a fresh raw API key in the ``sk_live_`` format the API expects."""
+    return f"sk_live_{secrets.token_hex(24)}"
+
+
+async def create_api_key(db: AsyncSession, workspace_id: str, name: str) -> tuple[ApiKey, str]:
+    """Issues a new API key for a workspace, returning the row and the raw token.
+
+    Only the SHA-256 hash and the 16-character prefix are persisted; the raw
+    token is returned once for the caller to show the user and is never
+    recoverable afterwards.
+
+    Args:
+        db: Async database session.
+        workspace_id: The workspace the key is scoped to.
+        name: A human label for the key.
+
+    Returns:
+        A tuple of the persisted ``ApiKey`` and the raw token string.
+    """
+    raw = generate_api_key()
+    api_key = ApiKey(
+        workspace_id=uuid.UUID(workspace_id),
+        key_hash=_sha256(raw),
+        key_prefix=raw[:KEY_PREFIX_LEN],
+        name=name,
+    )
+    db.add(api_key)
+    await db.commit()
+    await db.refresh(api_key)
+    return api_key, raw
 
 
 @dataclass(frozen=True)

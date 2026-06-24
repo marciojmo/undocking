@@ -1,25 +1,69 @@
 # Ship Web (admin panel)
 
-The Next.js (App Router) admin panel for Ship. This is **phase 2 and not yet
-implemented** — this directory is a placeholder for the dashboard.
+The Next.js (App Router) admin panel for Ship. A browser dashboard for humans to
+manage a workspace, separate from the agent-facing `sk_live_` API keys.
 
-## Planned scope
+## Scope (phase 2)
 
-A browser dashboard for humans to manage a workspace:
-
-- Authentication (interactive session/cookie login, distinct from the agent-facing
-  `sk_live_` API keys)
-- Workspace management
-- API key issuance and revocation
+- OAuth sign-in (GitHub / Google), distinct from the `sk_live_` agent keys
+- Workspace management (create, list)
+- API key issuance (shown once) and revocation
 - Deployment browser (list, view, delete)
 
-It will consume the same `/v1` REST API exposed by [`../api`](../api), so it needs
-no privileged access to internals.
+It consumes the `/v1` and `/admin` REST APIs exposed by [`../api`](../api). The
+API owns the database and runs the OAuth flow; this app is a thin client.
 
-## Status
+## Architecture
 
-Not started. See [`../docs/ship-plan.md`](../docs/ship-plan.md) for the overall
-plan and where this fits.
+The browser only ever talks to the Next.js origin. `next.config.ts` rewrites
+`/api/*` to the FastAPI backend so the session cookie stays first-party (no
+CORS). Server Components and Server Actions call the backend directly and forward
+the session cookie via [`src/lib/api.ts`](src/lib/api.ts).
+
+```
+src/app/
+  page.tsx                         # Public landing page + sign-in
+  dashboard/
+    layout.tsx                     # Auth gate (/auth/me) + header
+    page.tsx                       # Workspaces list + create
+    actions.ts                     # Server Actions (create/issue/revoke/delete)
+    workspaces/[id]/page.tsx       # API keys + deployments for a workspace
+```
+
+## Requirements
+
+- Node.js 20+
+- The [`../api`](../api) backend running (defaults to `http://localhost:8000`)
+
+## Setup
+
+```bash
+cd web
+npm install
+cp .env.example .env.local   # adjust if the API runs elsewhere
+```
+
+`.env.local` settings:
+
+- `API_PROXY_TARGET` — where the browser-facing `/api/*` proxy forwards to.
+- `API_INTERNAL_URL` — base URL the Next.js server uses for SSR data fetching.
+
+## Running
+
+```bash
+npm run dev      # http://localhost:3000
+```
+
+Sign-in requires OAuth credentials configured on the API side (see
+[`../api/.env.example`](../api/.env.example)). With none set, the landing page
+shows that no providers are configured.
+
+## Development
+
+```bash
+npm run lint
+npm run build
+```
 
 ## License
 
