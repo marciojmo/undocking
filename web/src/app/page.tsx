@@ -42,6 +42,9 @@ export default async function LandingPage() {
           <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
             Deploy artifacts in a single call
           </span>
+          <div>
+            <Rocket className="size-20 animate-rocket" />
+          </div>
           <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
             Ship HTML &amp; Markdown to a public URL
           </h1>

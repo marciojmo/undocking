@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Globe, Trash2 } from "lucide-react";
+import { ExternalLink, Globe, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { deleteDeploymentAction } from "@/app/dashboard/actions";
@@ -27,6 +27,13 @@ export function DeploymentsList({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [refreshing, startRefresh] = useTransition();
+
+  function handleRefresh() {
+    startRefresh(() => {
+      router.refresh();
+    });
+  }
 
   function handleDelete(deploymentId: string) {
     startTransition(async () => {
@@ -42,11 +49,22 @@ export function DeploymentsList({
 
   return (
     <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-lg font-semibold">Deployments</h2>
-        <p className="text-sm text-muted-foreground">
-          Artifacts shipped to this workspace.
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">Deployments</h2>
+          <p className="text-sm text-muted-foreground">
+            Artifacts shipped to this workspace.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={refreshing}
+          onClick={handleRefresh}
+        >
+          <RefreshCw className={refreshing ? "size-4 animate-spin" : "size-4"} />
+          Refresh
+        </Button>
       </div>
 
       {deployments.length === 0 ? (
@@ -65,7 +83,14 @@ export function DeploymentsList({
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="truncate font-mono text-sm">{deployment.slug}</p>
+                  <a
+                    href={deployment.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate font-mono text-sm hover:underline"
+                  >
+                    {deployment.slug}
+                  </a>
                   <Badge variant="secondary">{deployment.content_type}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">

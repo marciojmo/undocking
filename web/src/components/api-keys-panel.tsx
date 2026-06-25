@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { issueKeyAction, revokeKeyAction } from "@/app/dashboard/actions";
 import type { ApiKey } from "@/lib/api";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,6 +27,32 @@ function formatDate(value: string): string {
   });
 }
 
+/** Resolves the public MCP endpoint, preferring an explicit override. */
+function mcpUrl(): string {
+  const override = process.env.NEXT_PUBLIC_MCP_URL;
+  if (override) return override;
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api/mcp`;
+  }
+  return "/api/mcp";
+}
+
+/** Builds a paste-ready MCP server config for the given key. */
+function mcpConfig(key: string): string {
+  return JSON.stringify(
+    {
+      mcpServers: {
+        ship: {
+          url: mcpUrl(),
+          headers: { Authorization: `Bearer ${key}` },
+        },
+      },
+    },
+    null,
+    2,
+  );
+}
+
 export function ApiKeysPanel({
   workspaceId,
   keys,
@@ -40,12 +65,17 @@ export function ApiKeysPanel({
   const [name, setName] = useState("");
   const [revealed, setRevealed] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [configCopied, setConfigCopied] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const activeKeys = keys.filter((key) => key.revoked_at === null);
 
   function openDialog() {
     setName("");
     setRevealed(null);
     setCopied(false);
+    setConfigCopied(false);
     setDialogOpen(true);
   }
 
@@ -54,7 +84,9 @@ export function ApiKeysPanel({
     if (!open && revealed) router.refresh();
   }
 
-  function handleCreate() {
+  function handleCreate(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return;
     startTransition(async () => {
       const result = await issueKeyAction(workspaceId, name);
       if (!result.ok) {
@@ -66,15 +98,21 @@ export function ApiKeysPanel({
   }
 
   function handleRevoke(keyId: string) {
-    startTransition(async () => {
-      const result = await revokeKeyAction(workspaceId, keyId);
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
-      }
-      toast.success("Key revoked");
-      router.refresh();
-    });
+    // Fade the row out first, then revoke and refresh once the transition ends.
+    setRemovingId(keyId);
+    setTimeout(() => {
+      startTransition(async () => {
+        const result = await revokeKeyAction(workspaceId, keyId);
+        if (!result.ok) {
+          setRemovingId(null);
+          toast.error(result.error);
+          return;
+        }
+        toast.success("Key revoked");
+        router.refresh();
+        setRemovingId(null);
+      });
+    }, 300);
   }
 
   async function copyKey() {
@@ -82,6 +120,13 @@ export function ApiKeysPanel({
     await navigator.clipboard.writeText(revealed);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function copyConfig() {
+    if (!revealed) return;
+    await navigator.clipboard.writeText(mcpConfig(revealed));
+    setConfigCopied(true);
+    setTimeout(() => setConfigCopied(false), 1500);
   }
 
   return (
@@ -99,39 +144,35 @@ export function ApiKeysPanel({
         </Button>
       </div>
 
-      {keys.length === 0 ? (
+      {activeKeys.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border py-12 text-center">
           <KeyRound className="size-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">No API keys yet.</p>
         </div>
       ) : (
         <div className="divide-y rounded-xl border">
-          {keys.map((key) => {
-            const revoked = key.revoked_at !== null;
+          {activeKeys.map((key) => {
+            const removing = removingId === key.id;
             return (
               <div
                 key={key.id}
-                className="flex items-center justify-between gap-4 px-4 py-3"
+                className={`flex items-center justify-between gap-4 overflow-hidden px-4 py-3 transition-all duration-300 ${removing ? "max-h-0 py-0 opacity-0" : "max-h-24 opacity-100"
+                  }`}
               >
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium">{key.name}</p>
-                    {revoked && <Badge variant="secondary">Revoked</Badge>}
-                  </div>
+                  <p className="truncate font-medium">{key.name}</p>
                   <p className="font-mono text-xs text-muted-foreground">
                     {key.key_prefix}… · created {formatDate(key.created_at)}
                   </p>
                 </div>
-                {!revoked && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={pending}
-                    onClick={() => handleRevoke(key.id)}
-                  >
-                    Revoke
-                  </Button>
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={pending || removing}
+                  onClick={() => handleRevoke(key.id)}
+                >
+                  Revoke
+                </Button>
               </div>
             );
           })}
@@ -139,7 +180,7 @@ export function ApiKeysPanel({
       )}
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogChange}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-3xl">
           {revealed ? (
             <>
               <DialogHeader>
@@ -149,19 +190,39 @@ export function ApiKeysPanel({
                 </DialogDescription>
               </DialogHeader>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-sm">
+                <code className="block flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-sm">
                   {revealed}
                 </code>
                 <Button variant="outline" size="icon" onClick={copyKey}>
                   {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
                 </Button>
               </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Connect your agent</p>
+                  <Button variant="outline" size="sm" onClick={copyConfig}>
+                    {configCopied ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Copy className="size-4" />
+                    )}
+                    Copy config
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Copy and paste this into your agent&apos;s MCP config to ship
+                  artifacts with this key.
+                </p>
+                <pre className="max-h-48 overflow-auto rounded-md border bg-muted px-3 py-2 font-mono text-xs">
+                  {mcpConfig(revealed)}
+                </pre>
+              </div>
               <DialogFooter>
                 <Button onClick={() => handleDialogChange(false)}>Done</Button>
               </DialogFooter>
             </>
           ) : (
-            <>
+            <form onSubmit={handleCreate} className="grid gap-4">
               <DialogHeader>
                 <DialogTitle>Create API key</DialogTitle>
                 <DialogDescription>
@@ -176,17 +237,15 @@ export function ApiKeysPanel({
                   onChange={(event) => setName(event.target.value)}
                   placeholder="e.g. production, ci, my-agent"
                   maxLength={64}
+                  autoFocus
                 />
               </div>
               <DialogFooter>
-                <Button
-                  onClick={handleCreate}
-                  disabled={pending || !name.trim()}
-                >
+                <Button type="submit" disabled={pending || !name.trim()}>
                   Create key
                 </Button>
               </DialogFooter>
-            </>
+            </form>
           )}
         </DialogContent>
       </Dialog>
