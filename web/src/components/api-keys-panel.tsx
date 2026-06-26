@@ -37,12 +37,25 @@ function mcpUrl(): string {
   return "/api/mcp";
 }
 
+/** Resolves the public REST API base (no trailing slash). Override with NEXT_PUBLIC_API_URL. */
+function apiBaseUrl(): string {
+  const override = process.env.NEXT_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, "");
+  const mcpOverride = process.env.NEXT_PUBLIC_MCP_URL;
+  if (mcpOverride) return mcpOverride.replace(/\/mcp\/?$/, "");
+  if (typeof window !== "undefined") {
+    return `${window.location.origin}/api`;
+  }
+  return "/api";
+}
+
 /** Builds a paste-ready MCP server config for the given key. */
 function mcpConfig(key: string): string {
   return JSON.stringify(
     {
       mcpServers: {
         ship: {
+          type: "http",
           url: mcpUrl(),
           headers: { Authorization: `Bearer ${key}` },
         },
@@ -51,6 +64,27 @@ function mcpConfig(key: string): string {
     null,
     2,
   );
+}
+
+/** Builds a paste-ready setup prompt for an LLM agent. */
+function llmPrompt(key: string): string {
+  const api = apiBaseUrl();
+  const config = mcpConfig(key);
+  return `Set up Ship for me. Ship publishes HTML or Markdown artifacts to public URLs via MCP or REST. API base: ${api}/v1
+
+1. Add this Streamable HTTP MCP server to my agent's MCP configuration. Merge with any existing \`mcpServers\` entries — do not remove other servers:
+
+${config}
+
+2. Restart or reload the MCP connection so the \`ship\` server is active.
+
+3. Verify Ship is connected. Read the \`how_to_deploy\` prompt from the \`ship\` MCP server, or run:
+   curl -s ${api}/v1/deployments -H "Authorization: Bearer ${key}"
+   Expect JSON with a \`deployments\` array (empty is fine).
+
+4. Demo that it works: use the \`deploy_artifact\` MCP tool (or POST ${api}/v1/deployments) to publish a one-line Markdown page with content "# You're ready to Ship!" and content_type "markdown". Tell me the public URL and open it when done.
+
+Use \`Authorization: Bearer ${key}\` on all REST requests. Full deployment guide: GET ${api}/v1/instructions`;
 }
 
 export function ApiKeysPanel({
@@ -65,6 +99,7 @@ export function ApiKeysPanel({
   const [name, setName] = useState("");
   const [revealed, setRevealed] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
   const [configCopied, setConfigCopied] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -75,6 +110,7 @@ export function ApiKeysPanel({
     setName("");
     setRevealed(null);
     setCopied(false);
+    setPromptCopied(false);
     setConfigCopied(false);
     setDialogOpen(true);
   }
@@ -120,6 +156,13 @@ export function ApiKeysPanel({
     await navigator.clipboard.writeText(revealed);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function copyPrompt() {
+    if (!revealed) return;
+    await navigator.clipboard.writeText(llmPrompt(revealed));
+    setPromptCopied(true);
+    setTimeout(() => setPromptCopied(false), 1500);
   }
 
   async function copyConfig() {
@@ -199,7 +242,27 @@ export function ApiKeysPanel({
               </div>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium">Connect your agent</p>
+                  <p className="text-sm font-medium">Agent prompt</p>
+                  <Button variant="outline" size="sm" onClick={copyPrompt}>
+                    {promptCopied ? (
+                      <Check className="size-4" />
+                    ) : (
+                      <Copy className="size-4" />
+                    )}
+                    Copy LLM Prompt
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Paste into your agent — it should create the MCP config and
+                  verify the connection.
+                </p>
+                <pre className="max-h-56 overflow-auto rounded-md border bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap">
+                  {llmPrompt(revealed)}
+                </pre>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">MCP config</p>
                   <Button variant="outline" size="sm" onClick={copyConfig}>
                     {configCopied ? (
                       <Check className="size-4" />
@@ -210,8 +273,7 @@ export function ApiKeysPanel({
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Copy and paste this into your agent&apos;s MCP config to ship
-                  artifacts with this key.
+                  Paste into your MCP client&apos;s configuration, then reload.
                 </p>
                 <pre className="max-h-48 overflow-auto rounded-md border bg-muted px-3 py-2 font-mono text-xs">
                   {mcpConfig(revealed)}
