@@ -12,6 +12,7 @@ from mcp.server.fastmcp import Context, FastMCP
 from ..auth import WorkspaceContext, resolve_api_key
 from ..config import settings
 from ..database import SessionLocal
+from ..instructions import agent_upload_guide
 from ..services import deployments as deployment_service
 
 # streamable_http_path is set to "/" so that, once mounted at "/mcp" in main.py,
@@ -50,7 +51,10 @@ async def deploy_artifact(
     content_type: str,
     slug: str | None = None,
 ) -> dict:
-    """Deploy an HTML or Markdown artifact and get back a public URL."""
+    """Deploy content inline (≤ 1 MB). Returns a live URL immediately.
+
+    Use ``create_upload_url`` for larger files.
+    """
     async with SessionLocal() as db:
         try:
             workspace = await resolve_api_key(_bearer_token(ctx), db)
@@ -60,22 +64,64 @@ async def deploy_artifact(
             return {"error": "Invalid or revoked API key"}
 
         try:
-            deployment = await deployment_service.create_deployment(
+            deployment = await deployment_service.create_inline_deployment(
                 db,
                 workspace,
+                content_type=content_type,
+                slug=slug,
                 content=content,
+            )
+        except deployment_service.SlugTakenError as error:
+            return {"error": f'Slug "{error}" is already taken in this workspace'}
+
+        return {
+            "id": str(deployment.id),
+            "url": _deployment_url(workspace, deployment.slug),
+            "status": deployment.status,
+        }
+
+
+@mcp.tool()
+async def create_upload_url(
+    ctx: Context,
+    content_type: str,
+    slug: str | None = None,
+) -> dict:
+    """Reserve a presigned PUT URL for content > 1 MB. No auth header on the PUT.
+
+    Status is ``"pending"`` until the upload lands; poll ``list_deployments`` to watch.
+    """
+    async with SessionLocal() as db:
+        try:
+            workspace = await resolve_api_key(_bearer_token(ctx), db)
+        except _AuthError as error:
+            return {"error": str(error)}
+        if workspace is None:
+            return {"error": "Invalid or revoked API key"}
+
+        try:
+            deployment, upload_url = await deployment_service.reserve_upload(
+                db,
+                workspace,
                 content_type=content_type,
                 slug=slug,
             )
         except deployment_service.SlugTakenError as error:
             return {"error": f'Slug "{error}" is already taken in this workspace'}
 
-        return {"id": str(deployment.id), "url": _deployment_url(workspace, deployment.slug)}
+        return {
+            "id": str(deployment.id),
+            "url": _deployment_url(workspace, deployment.slug),
+            "upload_url": upload_url,
+            "expires_in": settings.upload_url_expiry_seconds,
+            "method": "PUT",
+            "status": deployment.status,
+        }
 
 
 @mcp.tool()
 async def list_deployments(ctx: Context, limit: int = 50) -> dict:
-    """List deployments in the current workspace."""
+    """List workspace deployments, newest first."""
     async with SessionLocal() as db:
         try:
             workspace = await resolve_api_key(_bearer_token(ctx), db)
@@ -91,6 +137,7 @@ async def list_deployments(ctx: Context, limit: int = 50) -> dict:
                     "id": str(deployment.id),
                     "slug": deployment.slug,
                     "content_type": deployment.content_type,
+                    "status": deployment.status,
                     "created_at": deployment.created_at.isoformat(),
                     "url": _deployment_url(workspace, deployment.slug),
                 }
@@ -116,3 +163,15 @@ async def delete_deployment(ctx: Context, deployment_id: str) -> dict:
             return {"error": "Deployment not found"}
 
         return {"deleted": deployment_id}
+
+
+@mcp.prompt()
+def how_to_deploy() -> str:
+    """Full guide: deploy HTML or Markdown artifacts and get public URLs."""
+    return agent_upload_guide()
+
+
+@mcp.resource("ship://guide/deploy", mime_type="text/markdown")
+def deploy_guide() -> str:
+    """The Ship deployment guide for agents."""
+    return agent_upload_guide()
