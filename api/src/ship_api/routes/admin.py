@@ -157,6 +157,7 @@ async def list_deployments(
             id=str(deployment.id),
             slug=deployment.slug,
             content_type=deployment.content_type,
+            status=deployment.status,
             created_at=deployment.created_at,
             url=f"{base}/{workspace.slug}/{deployment.slug}",
         )

@@ -54,13 +54,13 @@ async def _make_deployment(
 
 @pytest.mark.asyncio
 async def test_serve_renders_markdown(client, db, monkeypatch):
-    await _make_deployment(db, content_type="markdown")
+    await _make_deployment(db, content_type="text/markdown")
 
     async def fake_etag(key: str) -> str:
         return '"etag-1"'
 
-    async def fake_download(key: str) -> str:
-        return "# Title"
+    async def fake_download(key: str) -> bytes:
+        return b"# Title"
 
     monkeypatch.setattr(serve_route, "head_etag", fake_etag)
     monkeypatch.setattr(serve_route, "download_artifact", fake_download)
@@ -73,31 +73,63 @@ async def test_serve_renders_markdown(client, db, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_serve_wraps_html(client, db, monkeypatch):
-    await _make_deployment(db, content_type="html")
+async def test_serve_html_as_is(client, db, monkeypatch):
+    await _make_deployment(db, content_type="text/html")
 
     monkeypatch.setattr(serve_route, "head_etag", lambda key: _async('"e"'))
-    monkeypatch.setattr(serve_route, "download_artifact", lambda key: _async("<p>hi</p>"))
+    monkeypatch.setattr(serve_route, "download_artifact", lambda key: _async(b"<p>hi</p>"))
 
     response = await client.get("/acme/post")
 
     assert response.status_code == 200
-    assert "<!DOCTYPE html>" in response.text
+    assert "text/html" in response.headers["content-type"]
     assert "<p>hi</p>" in response.text
+    # HTML is served as-is, not wrapped in a shell.
+    assert "<!DOCTYPE html>" not in response.text
+
+
+@pytest.mark.asyncio
+async def test_serve_image_with_correct_mime(client, db, monkeypatch):
+    await _make_deployment(db, content_type="image/png")
+
+    fake_bytes = b"\x89PNG\r\n\x1a\n"
+    monkeypatch.setattr(serve_route, "head_etag", lambda key: _async('"e"'))
+    monkeypatch.setattr(serve_route, "download_artifact", lambda key: _async(fake_bytes))
+
+    response = await client.get("/acme/post")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == fake_bytes
+
+
+@pytest.mark.asyncio
+async def test_serve_pdf_with_correct_mime(client, db, monkeypatch):
+    await _make_deployment(db, content_type="application/pdf")
+
+    fake_bytes = b"%PDF-1.4"
+    monkeypatch.setattr(serve_route, "head_etag", lambda key: _async('"e"'))
+    monkeypatch.setattr(serve_route, "download_artifact", lambda key: _async(fake_bytes))
+
+    response = await client.get("/acme/post")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content == fake_bytes
 
 
 @pytest.mark.asyncio
 async def test_serve_uses_etag_cache(client, db, monkeypatch):
-    await _make_deployment(db, content_type="markdown")
+    await _make_deployment(db, content_type="text/markdown")
     downloads = 0
 
     async def fake_etag(key: str) -> str:
         return '"stable"'
 
-    async def fake_download(key: str) -> str:
+    async def fake_download(key: str) -> bytes:
         nonlocal downloads
         downloads += 1
-        return "# Cached"
+        return b"# Cached"
 
     monkeypatch.setattr(serve_route, "head_etag", fake_etag)
     monkeypatch.setattr(serve_route, "download_artifact", fake_download)
@@ -112,7 +144,7 @@ async def test_serve_uses_etag_cache(client, db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_serve_404_when_not_uploaded(client, db, monkeypatch):
-    await _make_deployment(db, content_type="markdown")
+    await _make_deployment(db, content_type="text/markdown")
 
     async def fake_etag(key: str) -> None:
         return None
@@ -132,7 +164,7 @@ async def test_serve_404_for_unknown_workspace(client, db):
 
 @pytest.mark.asyncio
 async def test_serve_pending_row_404s_when_not_uploaded(client, db, monkeypatch):
-    await _make_deployment(db, content_type="markdown", status="pending")
+    await _make_deployment(db, content_type="text/markdown", status="pending")
 
     async def fake_head(key: str) -> None:
         return None
@@ -147,13 +179,13 @@ async def test_serve_pending_row_404s_when_not_uploaded(client, db, monkeypatch)
 
 @pytest.mark.asyncio
 async def test_serve_pending_row_reconciles_and_serves(client, db, monkeypatch):
-    await _make_deployment(db, content_type="markdown", status="pending")
+    await _make_deployment(db, content_type="text/markdown", status="pending")
 
     async def present_head(key: str) -> str:
         return '"etag-1"'
 
-    async def fake_download(key: str) -> str:
-        return "# Title"
+    async def fake_download(key: str) -> bytes:
+        return b"# Title"
 
     # Object is present, so the reconcile promotes the row and serve renders it.
     monkeypatch.setattr(deployment_service, "head_etag", present_head)

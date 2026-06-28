@@ -10,7 +10,9 @@ from .mcp.server import mcp
 from .routes.admin import router as admin_router
 from .routes.auth import router as auth_router
 from .routes.deployments import router as deployments_router
+from .routes.events import router as events_router
 from .routes.serve import router as serve_router
+from .routes.uploads import router as uploads_router
 
 configure_logging()
 
@@ -35,6 +37,8 @@ app.add_middleware(
 )
 
 app.include_router(deployments_router)
+app.include_router(uploads_router)
+app.include_router(events_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
 app.mount("/mcp", mcp.streamable_http_app())

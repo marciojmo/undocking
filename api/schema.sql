@@ -39,10 +39,15 @@ CREATE TABLE IF NOT EXISTS deployments (
     slug         TEXT NOT NULL,
     content_type TEXT NOT NULL,
     storage_key  TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending',
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deployed_at  TIMESTAMPTZ,
     deleted_at   TIMESTAMPTZ,
     CONSTRAINT deployments_workspace_slug_key UNIQUE (workspace_id, slug)
 );
+
+-- The R2 event webhook looks deployments up by storage_key.
+CREATE INDEX IF NOT EXISTS deployments_storage_key_idx ON deployments (storage_key);
 
 -- Seeding example -----------------------------------------------------------
 --

@@ -70,21 +70,21 @@ function mcpConfig(key: string): string {
 function llmPrompt(key: string): string {
   const api = apiBaseUrl();
   const config = mcpConfig(key);
-  return `Set up Ship for me. Ship publishes HTML or Markdown artifacts to public URLs via MCP or REST. API base: ${api}/v1
+  return `Set up Ship for me. Ship publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON, SVG, and more) to public URLs via MCP or REST. API base: ${api}/v1
 
-1. Add this Streamable HTTP MCP server to my agent's MCP configuration. Merge with any existing \`mcpServers\` entries — do not remove other servers:
+1. Add this MCP server to my configuration. Merge with existing \`mcpServers\` — do not remove other servers:
 
 ${config}
 
-2. Restart or reload the MCP connection so the \`ship\` server is active.
+2. Reload the MCP connection so the \`ship\` server is active.
 
-3. Verify Ship is connected. Read the \`how_to_deploy\` prompt from the \`ship\` MCP server, or run:
+3. Verify: call \`list_deployments\` on the \`ship\` MCP server. Expect \`{"deployments": [...]}\`. If MCP is unavailable, run:
    curl -s ${api}/v1/deployments -H "Authorization: Bearer ${key}"
-   Expect JSON with a \`deployments\` array (empty is fine).
 
-4. Demo that it works: use the \`deploy_artifact\` MCP tool (or POST ${api}/v1/deployments) to publish a one-line Markdown page with content "# You're ready to Ship!" and content_type "markdown". Tell me the public URL and open it when done.
+4. Publish a demo artifact using \`deploy_artifact\` with content_type "text/markdown" and content "# You're live on Ship!". Report the public URL.
 
-Use \`Authorization: Bearer ${key}\` on all REST requests. Full deployment guide: GET ${api}/v1/instructions`;
+Auth for all REST calls: \`Authorization: Bearer ${key}\`
+Full guide (content types, presigned uploads, etc.): GET ${api}/v1/instructions`;
 }
 
 export function ApiKeysPanel({

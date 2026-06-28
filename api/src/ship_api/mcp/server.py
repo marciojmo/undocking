@@ -51,9 +51,13 @@ async def deploy_artifact(
     content_type: str,
     slug: str | None = None,
 ) -> dict:
-    """Deploy content inline (≤ 1 MB). Returns a live URL immediately.
+    """Deploy a text artifact inline (≤ 1 MB). Returns a live URL immediately.
 
-    Use ``create_upload_url`` for larger files.
+    ``content_type`` must be one of: text/html, text/markdown, text/plain,
+    text/csv, application/json, image/svg+xml.
+
+    For binary files (image/png, image/jpeg, image/gif, image/webp,
+    application/pdf) or content > 1 MB, use ``create_upload_url`` instead.
     """
     async with SessionLocal() as db:
         try:
@@ -87,8 +91,14 @@ async def create_upload_url(
     content_type: str,
     slug: str | None = None,
 ) -> dict:
-    """Reserve a presigned PUT URL for content > 1 MB. No auth header on the PUT.
+    """Reserve a presigned PUT URL for any artifact type, including binary files.
 
+    ``content_type`` must be one of: text/html, text/markdown, text/plain,
+    text/csv, application/json, image/svg+xml, image/png, image/jpeg,
+    image/gif, image/webp, application/pdf.
+
+    The returned ``upload_url`` accepts a plain PUT with the artifact bytes.
+    You MUST send ``Content-Type: <content_type>`` as a header on the PUT.
     Status is ``"pending"`` until the upload lands; poll ``list_deployments`` to watch.
     """
     async with SessionLocal() as db:
@@ -115,6 +125,7 @@ async def create_upload_url(
             "upload_url": upload_url,
             "expires_in": settings.upload_url_expiry_seconds,
             "method": "PUT",
+            "content_type": content_type,
             "status": deployment.status,
         }
 
@@ -167,7 +178,7 @@ async def delete_deployment(ctx: Context, deployment_id: str) -> dict:
 
 @mcp.prompt()
 def how_to_deploy() -> str:
-    """Full guide: deploy HTML or Markdown artifacts and get public URLs."""
+    """Full guide: deploy any artifact and get a public URL."""
     return agent_upload_guide()
 
 

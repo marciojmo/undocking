@@ -44,9 +44,12 @@ All `/v1` endpoints require an `Authorization: Bearer sk_live_...` header.
 
 | Method | Path | Description |
 |---|---|---|
-| `POST` | `/v1/deployments` | Deploy an HTML/Markdown artifact, returns a public URL |
-| `GET` | `/v1/deployments` | List active deployments (newest first) |
+| `POST` | `/v1/deployments` | Inline deploy; stores the content and goes live immediately |
+| `POST` | `/v1/uploads` | Reserve a presigned upload URL for large files (row starts `pending`) |
+| `GET` | `/v1/deployments` | List active deployments with status (newest first) |
 | `DELETE` | `/v1/deployments/{id}` | Soft-delete a deployment |
+| `GET` | `/v1/instructions` | Agent upload guide as Markdown (no auth) |
+| `POST` | `/internal/r2-events` | R2 event webhook; flips `pending` rows to `deployed` (shared-secret auth, no API key) |
 | `GET` | `/{workspace}/{slug}` | Public serving of a deployed artifact |
 | `*` | `/mcp` | MCP streamable-HTTP endpoint (same auth) |
 
@@ -77,19 +80,59 @@ register with the provider is `{PUBLIC_API_URL}/auth/callback/{provider}` (in de
 
 ### Deploy example
 
+For small files, deploy inline in one step; the URL is live immediately
+(`status` is `"deployed"`):
+
 ```bash
 curl -X POST http://localhost:8000/v1/deployments \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{"content": "# Hello", "content_type": "markdown"}'
+# -> { "id": "...", "url": "...", "status": "deployed" }
 ```
+
+For large files, reserve a presigned upload (the artifact never passes through
+the API), then PUT the bytes straight to the bucket:
+
+```bash
+curl -X POST http://localhost:8000/v1/uploads \
+  -H "Authorization: Bearer sk_live_..." \
+  -H "Content-Type: application/json" \
+  -d '{"content_type": "markdown"}'
+# -> { "url": "...", "upload_url": "...", "expires_in": 900, "method": "PUT", "status": "pending" }
+
+curl -X PUT --upload-file ./artifact.md "<upload_url>"
+```
+
+The reserved deployment starts `pending` and serves `404` until the upload
+lands. There is no confirm call: an R2 event notification flips it to `deployed`
+(a lazy `HEAD` reconcile on the serve path is the fallback for missed events).
+
+Content is stored raw and rendered (Markdown -> styled HTML, HTML -> wrapped) on
+each request to `/{workspace}/{slug}`. The full agent guide is served at
+`GET /v1/instructions` (see also [`../docs/agent-upload-guide.md`](../docs/agent-upload-guide.md)).
+
+#### R2 event wiring (Cloudflare-side, outside this repo)
+
+Automatic `pending` -> `deployed` promotion relies on Cloudflare wiring that
+lives outside this repo: enable **R2 Event Notifications** on the bucket ->
+**Cloudflare Queue** -> a small **consumer/Worker** that POSTs each event to
+`/internal/r2-events` with the `X-Ship-Event-Secret` header set to
+`R2_EVENT_SECRET`. The endpoint accepts a single event or a batch, ignores
+unrelated keys, and is idempotent.
 
 ## MCP
 
 The MCP server is mounted at `/mcp` using the streamable-HTTP transport and
-exposes three tools: `deploy_artifact`, `list_deployments`, and
-`delete_deployment`. It authenticates with the same `sk_live_` bearer tokens
-as the REST API.
+exposes four tools: `deploy_artifact`, `create_upload_url`, `list_deployments`,
+and `delete_deployment`. It authenticates with the same `sk_live_` bearer tokens
+as the REST API. The deploy guide is also exposed as the `how_to_deploy` prompt
+and the `ship://guide/deploy` resource.
+
+`deploy_artifact` takes inline `content` and is live immediately (`status:
+"deployed"`). `create_upload_url` reserves a presigned `upload_url` for large
+files; the deployment starts `pending` and flips to `deployed` once the upload
+lands (poll `list_deployments` to observe it).
 
 ## Development
 

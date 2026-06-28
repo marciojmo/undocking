@@ -10,6 +10,24 @@ import type { Deployment } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+const CONTENT_TYPE_LABELS: Record<string, string> = {
+  "text/html": "HTML",
+  "text/markdown": "Markdown",
+  "text/plain": "Text",
+  "text/csv": "CSV",
+  "application/json": "JSON",
+  "image/svg+xml": "SVG",
+  "image/png": "PNG",
+  "image/jpeg": "JPEG",
+  "image/gif": "GIF",
+  "image/webp": "WebP",
+  "application/pdf": "PDF",
+};
+
+function contentTypeLabel(contentType: string): string {
+  return CONTENT_TYPE_LABELS[contentType] ?? contentType;
+}
+
 function formatDate(value: string): string {
   return new Date(value).toLocaleDateString(undefined, {
     year: "numeric",
@@ -91,7 +109,7 @@ export function DeploymentsList({
                   >
                     {deployment.slug}
                   </a>
-                  <Badge variant="secondary">{deployment.content_type}</Badge>
+                  <Badge variant="secondary">{contentTypeLabel(deployment.content_type)}</Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   created {formatDate(deployment.created_at)}

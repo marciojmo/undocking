@@ -13,21 +13,44 @@ def agent_upload_guide() -> str:
     base = settings.public_base_url
     return f"""# Ship Deployment Guide
 
-Auth: `Authorization: Bearer sk_live_...` (required on all requests)
+Ship publishes LLM-generated artifacts to public URLs. Auth: `Authorization: Bearer sk_live_...` (required on all requests).
 
 ## Choose a path
 
-| Size   | Method                       | Endpoint                            |
-|--------|------------------------------|-------------------------------------|
-| ≤ 1 MB | Inline deploy (one step)     | POST /v1/deployments                |
-| > 1 MB | Presigned upload (two steps) | POST /v1/uploads → PUT <upload_url> |
+| Content          | Method                       | Endpoint                            |
+|------------------|------------------------------|-------------------------------------|
+| Text, ≤ 1 MB     | Inline deploy (one step)     | POST /v1/deployments                |
+| Binary or > 1 MB | Presigned upload (two steps) | POST /v1/uploads → PUT <upload_url> |
+
+## Supported content types
+
+**Inline deploy** (`POST /v1/deployments`) — text-based only:
+
+| content_type       | Served as                          |
+|--------------------|------------------------------------|
+| `text/html`        | HTML document (served as-is)       |
+| `text/markdown`    | Rendered to a styled HTML page     |
+| `text/plain`       | Plain text                         |
+| `text/csv`         | CSV                                |
+| `application/json` | JSON                               |
+| `image/svg+xml`    | SVG image                          |
+
+**Presigned upload** (`POST /v1/uploads`) — all of the above plus:
+
+| content_type       | Served as    |
+|--------------------|--------------|
+| `image/png`        | PNG image    |
+| `image/jpeg`       | JPEG image   |
+| `image/gif`        | GIF image    |
+| `image/webp`       | WebP image   |
+| `application/pdf`  | PDF document |
 
 ## Inline deploy
 
     curl -sX POST {base}/v1/deployments \\
       -H "Authorization: Bearer sk_live_..." \\
       -H "Content-Type: application/json" \\
-      -d '{{"content": "# Hello", "content_type": "markdown"}}'
+      -d '{{"content": "# Hello", "content_type": "text/markdown"}}'
 
 Response — URL is live immediately:
 
@@ -40,24 +63,22 @@ Step 1 — reserve:
     curl -sX POST {base}/v1/uploads \\
       -H "Authorization: Bearer sk_live_..." \\
       -H "Content-Type: application/json" \\
-      -d '{{"content_type": "markdown"}}'
+      -d '{{"content_type": "image/png"}}'
 
     {{"id": "...", "url": "{base}/<workspace>/<slug>", "upload_url": "https://...",
-     "expires_in": 900, "method": "PUT", "status": "pending"}}
+     "expires_in": 900, "method": "PUT", "content_type": "image/png", "status": "pending"}}
 
-Step 2 — PUT raw bytes (no auth header):
+Step 2 — PUT raw bytes with matching Content-Type header:
 
-    curl -X PUT --upload-file ./artifact.md "<upload_url>"
+    curl -X PUT -H "Content-Type: image/png" --upload-file ./image.png "<upload_url>"
 
 Status flips `"pending"` → `"deployed"` automatically once the upload lands.
 `upload_url` is single-use and expires after `expires_in` seconds.
 
 ## Fields
 
-- `content_type` (required): `"markdown"` | `"html"`. Markdown is rendered to a
-  styled page; HTML is wrapped as a body fragment — send inner markup only, not a
-  full `<html>` document.
-- `content` (required for inline): raw artifact, ≤ 1 MB.
+- `content_type` (required): MIME type from the tables above.
+- `content` (required for inline): raw artifact as a string, ≤ 1 MB.
 - `slug` (optional): URL path segment. Auto-generated if omitted. Returns 409 if taken.
 
 ## List & delete

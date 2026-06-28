@@ -4,6 +4,38 @@
 
 A deployment platform for HTML/Markdown artifacts. Users upload content via REST or MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`. Auth is via bearer API keys scoped to a workspace. Designed for AI Agents.
 
+### Upload model
+
+Deploying is split into two flows, each with REST + MCP parity:
+
+- **Inline deploy** — `POST /v1/deployments` (MCP `deploy_artifact`) carries the
+  raw `content` in the request, stores it, and returns a row with
+  `status: "deployed"`. The URL is live immediately. Inline content is capped at
+  ~1 MB; use the presigned flow for anything larger.
+- **Presigned upload** — `POST /v1/uploads` (MCP `create_upload_url`) reserves
+  the slug, inserts a `status: "pending"` row, and returns a presigned R2 PUT
+  `upload_url`. The caller uploads the raw bytes straight to the bucket, keeping
+  large bodies out of the model's token stream and off the API. There is **no
+  confirm call**: the deployment flips to `deployed` when the upload lands.
+
+Completion is detected server-side from an **R2 event notification**. R2
+delivers object events through a Cloudflare Queue; a small consumer/Worker
+(configured in Cloudflare, not this repo) forwards them to the internal
+`POST /internal/r2-events` webhook, authenticated by a shared secret
+(`R2_EVENT_SECRET`, constant-time compared) rather than an API key. The webhook
+looks the deployment up by `storage_key` and marks it `deployed` idempotently;
+it tolerates single or batched events and ignores unrelated keys. As a fallback
+for missed/delayed events, the serve path lazily `HEAD`s a `pending` object and
+promotes it if the bytes are already present. A `pending` slug serves `404`
+until it goes live.
+
+Either way the stored object is the **raw** HTML or Markdown under
+`{workspace_id}/{slug}/source`. Rendering (Markdown -> sanitized, styled HTML;
+HTML body -> styled wrapper) happens at serve time, cached per object by ETag.
+The agent-facing upload guide lives in [`agent-upload-guide.md`](agent-upload-guide.md)
+and is served at `GET /v1/instructions` plus the MCP `how_to_deploy` prompt and
+`ship://guide/deploy` resource.
+
 ---
 
 ## Project layout
@@ -733,7 +765,7 @@ Run with: `uvicorn ship_api.main:app --port 8000`
 ## What stays the same
 
 - Database schema — same tables and columns, minus the fields trimmed for the MVP (see below)
-- R2 storage layout — keyed by immutable workspace ID: `{workspace_id}/{slug}/index.html`
+- R2 storage layout — keyed by immutable workspace ID: `{workspace_id}/{slug}/source` (raw content; rendered on serve)
 - Auth scheme (`sk_live_` prefix, SHA-256 hash, key_prefix index)
 - API surface (`/v1/deployments`, `/{workspace}/{slug}`, `/mcp`)
 - HTML wrapper and markdown rendering output

@@ -8,17 +8,17 @@ const FEATURES = [
   {
     icon: Terminal,
     title: "One call to publish",
-    body: "POST HTML or Markdown over REST or MCP and get back a public URL. No build step, no config.",
+    body: "POST any artifact — HTML, Markdown, images, PDFs, JSON — over REST or MCP and get back a public URL.",
   },
   {
     icon: Zap,
     title: "Instant public URLs",
-    body: "Content is served at /{workspace}/{slug} the moment you deploy it — shareable immediately.",
+    body: "Artifacts are served at /{workspace}/{slug} with the correct MIME type the moment you deploy.",
   },
   {
     icon: KeyRound,
     title: "Built for agents",
-    body: "Scoped bearer keys and native MCP tools mean your agents can ship artifacts on their own.",
+    body: "Scoped bearer keys and native MCP tools mean your agents can publish artifacts on their own.",
   },
 ];
 
@@ -29,55 +29,69 @@ export default async function LandingPage() {
   const providers = await getProviders();
 
   return (
-    <main className="flex flex-1 flex-col">
-      <header className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
-        <div className="flex items-center gap-2 font-semibold">
-          <Rocket className="size-5" />
-          Ship
-        </div>
-      </header>
+    <div className="dark flex flex-1 flex-col bg-black text-white">
+      {/* Hero: full-viewport with NASA nighttime launch background */}
+      <div
+        className="relative flex min-h-svh flex-col"
+        style={{
+          backgroundImage: "url('/hero.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center 55%",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/20 to-black/80" />
 
-      <section className="mx-auto flex w-full max-w-5xl flex-1 flex-col items-center gap-12 px-6 py-16 text-center">
-        <div className="flex flex-col items-center gap-6">
-          <span className="rounded-full border px-3 py-1 text-xs font-medium text-muted-foreground">
+        <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
+          <div className="flex items-center gap-2 font-semibold">
+            <Rocket className="size-4" />
+            Ship
+          </div>
+          <a
+            href="https://github.com/marciojmo/ship"
+            className="text-sm text-white/60 transition-colors hover:text-white"
+          >
+            GitHub
+          </a>
+        </header>
+
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-32 text-center">
+          <span className="mb-8 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
             Deploy artifacts in a single call
           </span>
-          <div>
-            <Rocket className="size-20 animate-rocket" />
-          </div>
-          <h1 className="max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl">
-            Ship HTML &amp; Markdown to a public URL
+          <h1 className="max-w-3xl text-5xl font-bold tracking-tight sm:text-7xl">
+            Deploy artifacts<br />in one call
           </h1>
-          <p className="max-w-2xl text-lg text-muted-foreground">
-            Ship is a deployment platform for HTML and Markdown artifacts. Upload
-            content over REST or MCP, get back a link, and share it instantly —
-            designed from the ground up for AI agents.
+          <p className="mt-6 max-w-lg text-lg text-white/60">
+            REST or MCP → public URL. Built for AI agents.
           </p>
-          <div className="flex flex-col items-center gap-3 pt-2">
+          <div className="mt-8 flex flex-col items-center gap-3">
             <SignInButtons providers={providers} />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-white/30">
               Sign in to create a workspace and get an API key.
             </p>
           </div>
         </div>
+      </div>
 
-        <div className="grid w-full gap-6 sm:grid-cols-3">
+      {/* Feature cards below the fold */}
+      <div className="px-6 py-24">
+        <div className="mx-auto grid w-full max-w-5xl gap-6 sm:grid-cols-3">
           {FEATURES.map((feature) => (
             <div
               key={feature.title}
-              className="flex flex-col items-start gap-3 rounded-xl border p-6 text-left"
+              className="flex flex-col items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-6 text-left"
             >
-              <feature.icon className="size-5" />
+              <feature.icon className="size-5 text-white/60" />
               <h2 className="font-semibold">{feature.title}</h2>
-              <p className="text-sm text-muted-foreground">{feature.body}</p>
+              <p className="text-sm text-white/50">{feature.body}</p>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
-      <footer className="mx-auto w-full max-w-5xl px-6 py-8 text-center text-xs text-muted-foreground">
+      <footer className="px-6 pb-12 text-center text-xs text-white/25">
         Ship — open-source deployment platform for agents.
       </footer>
-    </main>
+    </div>
   );
 }
