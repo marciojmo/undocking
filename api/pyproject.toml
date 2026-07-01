@@ -5,7 +5,7 @@ description = "Deployment platform for agent generated artifacts. Upload via RES
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
+    "fastapi[standard]>=0.115",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.7",
     "pydantic-settings>=2.3",
@@ -55,3 +55,6 @@ ignore = ["B008"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.fastapi]
+entrypoint = "undocking_api.main:app" 
