@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
 
 
-app = FastAPI(title="Ship API", lifespan=lifespan)
+app = FastAPI(title="Undocking API", lifespan=lifespan)
 
 # Signs the dashboard session cookie used by the OAuth sign-in flow. Required by
 # request.session in the auth/admin routes.

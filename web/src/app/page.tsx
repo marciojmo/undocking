@@ -44,10 +44,10 @@ export default async function LandingPage() {
         <header className="relative z-10 mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-6">
           <div className="flex items-center gap-2 font-semibold">
             <Rocket className="size-4" />
-            Ship
+            Undocking
           </div>
           <a
-            href="https://github.com/marciojmo/ship"
+            href="https://github.com/marciojmo/undocking"
             className="text-sm text-white/60 transition-colors hover:text-white"
           >
             GitHub
@@ -90,7 +90,7 @@ export default async function LandingPage() {
       </div>
 
       <footer className="px-6 pb-12 text-center text-xs text-white/25">
-        Ship — open-source deployment platform for agents.
+        Undocking — open-source deployment platform for agents.
       </footer>
     </div>
   );

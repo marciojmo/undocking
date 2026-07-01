@@ -27,7 +27,7 @@ export default async function WorkspacesPage() {
             <p className="font-medium">No workspaces yet</p>
             <p className="max-w-sm text-sm text-muted-foreground">
               Create your first workspace above to start issuing API keys and
-              shipping artifacts.
+              publishing artifacts.
             </p>
           </CardContent>
         </Card>

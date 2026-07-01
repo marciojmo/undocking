@@ -1,4 +1,4 @@
-"""The canonical agent-facing guide for uploading artifacts to Ship.
+"""The canonical agent-facing guide for uploading artifacts to Undocking.
 
 A single source of truth surfaced three ways: the ``GET /v1/instructions`` REST
 endpoint, an MCP prompt and resource, and a committed copy at
@@ -11,9 +11,9 @@ from .config import settings
 def agent_upload_guide() -> str:
     """Returns the agent upload guide as Markdown, with URLs filled in from config."""
     base = settings.public_base_url
-    return f"""# Ship Deployment Guide
+    return f"""# Undocking Deployment Guide
 
-Ship publishes LLM-generated artifacts to public URLs. Auth: `Authorization: Bearer sk_live_...` (required on all requests).
+Undocking publishes LLM-generated artifacts to public URLs. Auth: `Authorization: Bearer sk_live_...` (required on all requests).
 
 ## Choose a path
 

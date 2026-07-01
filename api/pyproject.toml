@@ -1,5 +1,5 @@
 [project]
-name = "ship-api"
+name = "undocking-api"
 version = "0.1.0"
 description = "Deployment platform for HTML/Markdown artifacts. Upload via REST or MCP, get a public URL."
 readme = "README.md"
@@ -35,7 +35,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ship_api"]
+packages = ["src/undocking_api"]
 
 [tool.ruff]
 line-length = 100
@@ -49,7 +49,7 @@ ignore = ["B008"]
 
 [tool.ruff.lint.per-file-ignores]
 # The HTML wrapper embeds a long single-line CSS block by design.
-"src/ship_api/markdown.py" = ["E501"]
+"src/undocking_api/markdown.py" = ["E501"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

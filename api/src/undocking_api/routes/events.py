@@ -35,7 +35,7 @@ _events_adapter: TypeAdapter[R2Event | list[R2Event]] = TypeAdapter(R2Event | li
 @router.post("/r2-events")
 async def r2_events(
     payload: dict | list = Body(...),
-    x_ship_event_secret: str = Header(default=""),
+    x_undocking_event_secret: str = Header(default=""),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Promotes pending deployments for the object-create events in ``payload``.
@@ -49,7 +49,7 @@ async def r2_events(
     """
     if not settings.r2_event_secret:
         raise HTTPException(503, "Event webhook is not configured")
-    if not hmac.compare_digest(x_ship_event_secret, settings.r2_event_secret):
+    if not hmac.compare_digest(x_undocking_event_secret, settings.r2_event_secret):
         raise HTTPException(401, "Invalid event secret")
 
     parsed = _events_adapter.validate_python(payload)

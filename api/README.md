@@ -1,4 +1,4 @@
-# Ship API
+# Undocking API
 
 A deployment platform for HTML/Markdown artifacts. Upload content via REST or
 MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`.
@@ -35,7 +35,7 @@ is the first 16 characters of it. Keys must start with `sk_live_`.
 ## Running
 
 ```bash
-uv run uvicorn ship_api.main:app --port 8000
+uv run uvicorn undocking_api.main:app --port 8000
 ```
 
 ## API
@@ -117,7 +117,7 @@ each request to `/{workspace}/{slug}`. The full agent guide is served at
 Automatic `pending` -> `deployed` promotion relies on Cloudflare wiring that
 lives outside this repo: enable **R2 Event Notifications** on the bucket ->
 **Cloudflare Queue** -> a small **consumer/Worker** that POSTs each event to
-`/internal/r2-events` with the `X-Ship-Event-Secret` header set to
+`/internal/r2-events` with the `X-Undocking-Event-Secret` header set to
 `R2_EVENT_SECRET`. The endpoint accepts a single event or a batch, ignores
 unrelated keys, and is idempotent.
 
@@ -127,7 +127,7 @@ The MCP server is mounted at `/mcp` using the streamable-HTTP transport and
 exposes four tools: `deploy_artifact`, `create_upload_url`, `list_deployments`,
 and `delete_deployment`. It authenticates with the same `sk_live_` bearer tokens
 as the REST API. The deploy guide is also exposed as the `how_to_deploy` prompt
-and the `ship://guide/deploy` resource.
+and the `undocking://guide/deploy` resource.
 
 `deploy_artifact` takes inline `content` and is live immediately (`status:
 "deployed"`). `create_upload_url` reserves a presigned `upload_url` for large

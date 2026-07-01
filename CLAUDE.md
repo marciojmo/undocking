@@ -4,11 +4,11 @@ Guidance for working in this repository.
 
 ## Project
 
-**Ship** — a platform for publishing LLM-generated artifacts to the web. Agents upload any artifact (HTML, Markdown, images, PDFs, JSON, etc.) via REST or MCP, get back a public URL, and the artifact is served at `/{workspace}/{slug}` with its native MIME type. Auth is via bearer API keys scoped to a workspace.
+**Undocking** — a platform for publishing LLM-generated artifacts to the web. Agents upload any artifact (HTML, Markdown, images, PDFs, JSON, etc.) via REST or MCP, get back a public URL, and the artifact is served at `/{workspace}/{slug}` with its native MIME type. Auth is via bearer API keys scoped to a workspace.
 
 - Backend: Python + FastAPI (`api/`)
 - Admin panel: Next.js (`web/`, phase 2)
-- See [`docs/ship-plan.md`](docs/ship-plan.md) for the full implementation plan and architecture.
+- See [`docs/undocking-plan.md`](docs/undocking-plan.md) for the full implementation plan and architecture.
 
 ## Required reading
 

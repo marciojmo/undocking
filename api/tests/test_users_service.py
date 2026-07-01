@@ -1,6 +1,6 @@
 import pytest
 
-from ship_api.services.users import upsert_user
+from undocking_api.services.users import upsert_user
 
 
 @pytest.mark.asyncio

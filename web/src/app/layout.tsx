@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ship — deploy HTML & Markdown in one call",
+  title: "Undocking — deploy HTML & Markdown in one call",
   description:
-    "Ship turns HTML or Markdown into a public URL via REST or MCP. Built for AI agents.",
+    "Undocking turns HTML or Markdown into a public URL via REST or MCP. Built for AI agents.",
 };
 
 export default function RootLayout({

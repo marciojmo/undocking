@@ -5,11 +5,11 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from ship_api.database import get_db
-from ship_api.main import app
-from ship_api.models import Deployment, User, Workspace
-from ship_api.routes import serve as serve_route
-from ship_api.services import deployments as deployment_service
+from undocking_api.database import get_db
+from undocking_api.main import app
+from undocking_api.models import Deployment, User, Workspace
+from undocking_api.routes import serve as serve_route
+from undocking_api.services import deployments as deployment_service
 
 
 @pytest_asyncio.fixture
@@ -204,7 +204,7 @@ async def test_instructions_endpoint(client):
 
     assert response.status_code == 200
     assert "text/markdown" in response.headers["content-type"]
-    assert "Ship Deployment Guide" in response.text
+    assert "Undocking Deployment Guide" in response.text
 
 
 async def _async(value):

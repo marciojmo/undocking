@@ -1,7 +1,7 @@
 import pytest
 
-from ship_api.models import User
-from ship_api.services import workspaces as service
+from undocking_api.models import User
+from undocking_api.services import workspaces as service
 
 
 async def _user(db, email: str = "owner@example.com") -> User:

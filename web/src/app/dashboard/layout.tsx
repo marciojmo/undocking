@@ -27,7 +27,7 @@ export default async function DashboardLayout({
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
             <Rocket className="size-5" />
-            Ship
+            Undocking
           </Link>
           <div className="flex items-center gap-4">
             <span className="hidden text-sm text-muted-foreground sm:inline">

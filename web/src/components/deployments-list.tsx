@@ -71,7 +71,7 @@ export function DeploymentsList({
         <div>
           <h2 className="text-lg font-semibold">Deployments</h2>
           <p className="text-sm text-muted-foreground">
-            Artifacts shipped to this workspace.
+            Artifacts deployed to this workspace.
           </p>
         </div>
         <Button
@@ -89,7 +89,7 @@ export function DeploymentsList({
         <div className="flex flex-col items-center gap-2 rounded-xl border py-12 text-center">
           <Globe className="size-6 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">
-            No deployments yet. Ship one with the REST or MCP API.
+            No deployments yet. Deploy one with the REST or MCP API.
           </p>
         </div>
       ) : (

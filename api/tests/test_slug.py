@@ -1,6 +1,6 @@
 import string
 
-from ship_api import slug
+from undocking_api import slug
 
 
 def test_generate_slug_has_requested_length():

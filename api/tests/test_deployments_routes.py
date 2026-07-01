@@ -5,10 +5,10 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from ship_api.auth import WorkspaceContext, require_api_key
-from ship_api.database import get_db
-from ship_api.main import app
-from ship_api.services import deployments as service
+from undocking_api.auth import WorkspaceContext, require_api_key
+from undocking_api.database import get_db
+from undocking_api.main import app
+from undocking_api.services import deployments as service
 
 
 @pytest_asyncio.fixture

@@ -54,7 +54,7 @@ function mcpConfig(key: string): string {
   return JSON.stringify(
     {
       mcpServers: {
-        ship: {
+        undocking: {
           type: "http",
           url: mcpUrl(),
           headers: { Authorization: `Bearer ${key}` },
@@ -70,18 +70,18 @@ function mcpConfig(key: string): string {
 function llmPrompt(key: string): string {
   const api = apiBaseUrl();
   const config = mcpConfig(key);
-  return `Set up Ship for me. Ship publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON, SVG, and more) to public URLs via MCP or REST. API base: ${api}/v1
+  return `Set up Undocking for me. Undocking publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON, SVG, and more) to public URLs via MCP or REST. API base: ${api}/v1
 
 1. Add this MCP server to my configuration. Merge with existing \`mcpServers\` — do not remove other servers:
 
 ${config}
 
-2. Reload the MCP connection so the \`ship\` server is active.
+2. Reload the MCP connection so the \`undocking\` server is active.
 
-3. Verify: call \`list_deployments\` on the \`ship\` MCP server. Expect \`{"deployments": [...]}\`. If MCP is unavailable, run:
+3. Verify: call \`list_deployments\` on the \`undocking\` MCP server. Expect \`{"deployments": [...]}\`. If MCP is unavailable, run:
    curl -s ${api}/v1/deployments -H "Authorization: Bearer ${key}"
 
-4. Publish a demo artifact using \`deploy_artifact\` with content_type "text/markdown" and content "# You're live on Ship!". Report the public URL.
+4. Publish a demo artifact using \`deploy_artifact\` with content_type "text/markdown" and content "# You're live on Undocking!". Report the public URL.
 
 Auth for all REST calls: \`Authorization: Bearer ${key}\`
 Full guide (content types, presigned uploads, etc.): GET ${api}/v1/instructions`;

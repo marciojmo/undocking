@@ -2,9 +2,9 @@ import uuid
 
 import pytest
 
-from ship_api.auth import create_api_key, resolve_api_key
-from ship_api.models import User, Workspace
-from ship_api.services import api_keys as service
+from undocking_api.auth import create_api_key, resolve_api_key
+from undocking_api.models import User, Workspace
+from undocking_api.services import api_keys as service
 
 
 async def _workspace(db, slug: str = "acme") -> Workspace:

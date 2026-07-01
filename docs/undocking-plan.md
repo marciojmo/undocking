@@ -1,4 +1,4 @@
-# Ship API — Python Implementation Plan
+# Undocking API — Python Implementation Plan
 
 ## What this is
 
@@ -34,7 +34,7 @@ Either way the stored object is the **raw** HTML or Markdown under
 HTML body -> styled wrapper) happens at serve time, cached per object by ETag.
 The agent-facing upload guide lives in [`agent-upload-guide.md`](agent-upload-guide.md)
 and is served at `GET /v1/instructions` plus the MCP `how_to_deploy` prompt and
-`ship://guide/deploy` resource.
+`undocking://guide/deploy` resource.
 
 ---
 
@@ -43,18 +43,18 @@ and is served at `GET /v1/instructions` plus the MCP `how_to_deploy` prompt and
 Each module has a single responsibility (no `utils.py` / `helpers.py` dumping
 grounds). Business logic lives in a `services/` layer so the REST routes and the
 MCP tools share one implementation of deploy/list/delete instead of duplicating
-it. A `src/` layout makes the importable package name (`ship_api`) explicit and
+it. A `src/` layout makes the importable package name (`undocking_api`) explicit and
 matches the run command.
 
 ```
-ship/
+undocking/
 ├── web/                          # Next.js admin panel (phase 2)
 └── api/                          # FastAPI backend
     ├── pyproject.toml            # Dependencies + tooling config
     ├── README.md
     ├── .env.example              # Documents required settings
     └── src/
-        └── ship_api/
+        └── undocking_api/
             ├── __init__.py
             ├── main.py           # FastAPI app, mounts routers + MCP
             ├── config.py         # Settings (pydantic-settings, reads .env)
@@ -110,7 +110,7 @@ class Settings(BaseSettings):
     r2_account_id: str
     r2_access_key_id: str
     r2_secret_access_key: str
-    r2_bucket_name: str = "ship-artifacts"
+    r2_bucket_name: str = "undocking-artifacts"
     r2_public_url: str
     public_base_url: str = "http://localhost:8000"
     port: int = 8000
@@ -695,7 +695,7 @@ from mcp.server.fastmcp import FastMCP
 from ..auth import resolve_api_key   # shared helper returning WorkspaceContext | None
 from ..services import deployments as deployment_service  # same logic as the REST routes
 
-mcp = FastMCP("ship")
+mcp = FastMCP("undocking")
 
 @mcp.tool()
 async def deploy_artifact(content: str, content_type: str, slug: str | None = None) -> dict:
@@ -752,13 +752,13 @@ from .routes.serve import router as serve_router
 
 configure_logging()
 
-app = FastAPI(title="Ship API")
+app = FastAPI(title="Undocking API")
 app.include_router(deployments_router)
 app.include_router(serve_router)
 app.mount("/mcp", mcp.streamable_http_app())
 ```
 
-Run with: `uvicorn ship_api.main:app --port 8000`
+Run with: `uvicorn undocking_api.main:app --port 8000`
 
 ---
 
@@ -787,6 +787,6 @@ Run with: `uvicorn ship_api.main:app --port 8000`
 
 Trimmed to keep the first version lean. Each is easy to add back later without reshaping the core deploy → serve flow:
 
-- **Artifact expiry / TTL** — dropped `ttl_hours` and the `expires_at` column. Deployments live until explicitly deleted. Revisit if ephemeral previews become a paid-tier feature.
+- **Artifact expiry / TTL** — dropped `ttl_hours` and the `expires_at` column. Deployments live until explicitly deleted. Revisit if ephemeral previews become a future feature.
 - **API key `last_used_at` tracking** — removed the per-request DB write (a query + commit on every authenticated call). Reintroduce with a throttled or background update if the dashboard needs "last used" timestamps.
 - **Workspace + API key management endpoints** — signup/login, workspace creation, and key issuance live in the admin panel (phase 2, `web/`), not this agent-facing API. The API here assumes a workspace and key already exist.

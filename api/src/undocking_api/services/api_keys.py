@@ -1,6 +1,6 @@
 """API-key listing and revocation for the dashboard.
 
-Issuance lives in :mod:`ship_api.auth` next to the hashing logic; this module
+Issuance lives in :mod:`undocking_api.auth` next to the hashing logic; this module
 covers the management operations the dashboard needs.
 """
 

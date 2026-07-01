@@ -17,7 +17,7 @@ from ..services import deployments as deployment_service
 
 # streamable_http_path is set to "/" so that, once mounted at "/mcp" in main.py,
 # the endpoint is served at "/mcp" rather than the doubled-up "/mcp/mcp".
-mcp = FastMCP("ship", streamable_http_path="/")
+mcp = FastMCP("undocking", streamable_http_path="/")
 
 
 class _AuthError(Exception):
@@ -182,7 +182,7 @@ def how_to_deploy() -> str:
     return agent_upload_guide()
 
 
-@mcp.resource("ship://guide/deploy", mime_type="text/markdown")
+@mcp.resource("undocking://guide/deploy", mime_type="text/markdown")
 def deploy_guide() -> str:
-    """The Ship deployment guide for agents."""
+    """The Undocking deployment guide for agents."""
     return agent_upload_guide()

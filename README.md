@@ -1,62 +1,82 @@
-# Ship
+# Undocking
 
 A deployment platform for HTML/Markdown artifacts. Upload content via REST or
 MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`.
 Auth is via bearer API keys scoped to a workspace. Designed for AI agents.
 
-## Open core
-
-Ship is built as an open-core project:
-
-- The **core** (this repository's `api/` and `web/`) is open source under the
-  [Apache-2.0](LICENSE) license. It is fully functional and self-hostable.
-- A future **`ee/`** directory will hold commercial, paid-tier features
-  (billing, quotas, team management, and the hosted control plane). That code
-  will be governed by its own commercial license and is **not** part of the
-  Apache-2.0 grant. The `ee/` directory does not exist yet.
-
-If you self-host, everything you need lives in the open-source core.
-
 ## Repository layout
 
 ```
-ship/
+undocking/
 ├── api/     # FastAPI backend: REST + MCP, deploy/list/delete, serving
-├── web/     # Next.js admin panel (phase 2, not yet implemented)
-├── docs/    # Engineering docs and the implementation plan
-└── ee/      # (planned) commercial paid-tier features, separate license
+├── web/     # Next.js admin panel
+└── docs/    # Engineering docs and the implementation plan
 ```
 
 | Package | Stack | Status |
 |---|---|---|
 | [`api/`](api/) | Python 3.12, FastAPI, PostgreSQL, R2 | Active |
-| [`web/`](web/) | Next.js (App Router) | Planned (phase 2) |
-| `ee/` | TBD | Planned |
+| [`web/`](web/) | Next.js (App Router) | Active |
 
 ## Quickstart
 
-The backend is the place to start. See [`api/README.md`](api/README.md) for full
-setup, but in short:
+### Backend
 
 ```bash
 cd api
 uv venv --python 3.12
 uv pip install -e ".[dev]"
-cp .env.example .env            # then fill in your values
+cp .env.example .env            # then fill in your R2 and database values
 psql "$DATABASE_URL" -f schema.sql
-uv run uvicorn ship_api.main:app --port 8000
+uv run uvicorn undocking_api.main:app --port 8000
 ```
 
-All `/v1` endpoints and the `/mcp` MCP endpoint authenticate with
-`Authorization: Bearer sk_live_...` keys scoped to a workspace.
+Requires Python 3.12+, [`uv`](https://docs.astral.sh/uv/), a PostgreSQL
+database, and a Cloudflare R2 bucket (S3-compatible) for storage.
+
+### Frontend
+
+```bash
+cd web
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Requires Node.js 20+.
+
+### Docker Compose (alternative)
+
+Run the full stack — Postgres, API, and web — in one command:
+
+```bash
+cp api/.env.example api/.env    # fill in your R2 credentials
+docker compose up --build
+```
+
+- API: [http://localhost:8000](http://localhost:8000)
+- Web: [http://localhost:3000](http://localhost:3000)
+
+## Using the API
+
+All `/v1` REST endpoints and the `/mcp` MCP endpoint authenticate with
+`Authorization: Bearer sk_live_...` API keys scoped to a workspace.
+
+The MCP server is mounted at `http://localhost:8000/mcp` (streamable-HTTP
+transport) and exposes four tools: `deploy_artifact`, `create_upload_url`,
+`list_deployments`, and `delete_deployment`.
+
+See [`docs/agent-upload-guide.md`](docs/agent-upload-guide.md) for the
+agent-facing deployment guide (also served live at `GET /v1/instructions`),
+and [`api/README.md`](api/README.md) for the full REST/MCP API reference.
 
 ## Documentation
 
-- [`docs/ship-plan.md`](docs/ship-plan.md) — full implementation plan and architecture
+- [`docs/undocking-plan.md`](docs/undocking-plan.md) — full implementation plan and architecture
+- [`docs/agent-upload-guide.md`](docs/agent-upload-guide.md) — agent-facing deployment guide
 - [`docs/python_best_practices.md`](docs/python_best_practices.md) — Python conventions
 - [`docs/nextjs_best_practices.md`](docs/nextjs_best_practices.md) — Next.js conventions
 
 ## License
 
-The open-source core is licensed under the [Apache License 2.0](LICENSE).
-Future code under `ee/` will carry a separate commercial license.
+Apache License 2.0 — see [LICENSE](LICENSE).

@@ -5,10 +5,10 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from ship_api.database import get_db
-from ship_api.main import app
-from ship_api.models import User
-from ship_api.session_auth import require_user
+from undocking_api.database import get_db
+from undocking_api.main import app
+from undocking_api.models import User
+from undocking_api.session_auth import require_user
 
 
 @pytest_asyncio.fixture

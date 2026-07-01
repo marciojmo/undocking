@@ -1,9 +1,9 @@
-# Ship Deployment Guide
+# Undocking Deployment Guide
 
-This is the agent-facing guide for publishing artifacts to Ship. The API serves
+This is the agent-facing guide for publishing artifacts to Undocking. The API serves
 the same text at `GET /v1/instructions`, and the MCP server exposes it as the
-`how_to_deploy` prompt and the `ship://guide/deploy` resource. Replace
-`https://ship.example.com` below with your deployment's base URL.
+`how_to_deploy` prompt and the `undocking://guide/deploy` resource. Replace
+`https://undocking.example.com` below with your deployment's base URL.
 
 Auth: `Authorization: Bearer sk_live_...` (required on all requests)
 
@@ -17,7 +17,7 @@ Auth: `Authorization: Bearer sk_live_...` (required on all requests)
 ## Inline deploy
 
 ```bash
-curl -sX POST https://ship.example.com/v1/deployments \
+curl -sX POST https://undocking.example.com/v1/deployments \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{"content": "# Hello", "content_type": "markdown"}'
@@ -26,7 +26,7 @@ curl -sX POST https://ship.example.com/v1/deployments \
 Response — URL is live immediately:
 
 ```json
-{"id": "...", "url": "https://ship.example.com/<workspace>/<slug>", "status": "deployed"}
+{"id": "...", "url": "https://undocking.example.com/<workspace>/<slug>", "status": "deployed"}
 ```
 
 ## Presigned upload
@@ -34,14 +34,14 @@ Response — URL is live immediately:
 Step 1 — reserve:
 
 ```bash
-curl -sX POST https://ship.example.com/v1/uploads \
+curl -sX POST https://undocking.example.com/v1/uploads \
   -H "Authorization: Bearer sk_live_..." \
   -H "Content-Type: application/json" \
   -d '{"content_type": "markdown"}'
 ```
 
 ```json
-{"id": "...", "url": "https://ship.example.com/<workspace>/<slug>", "upload_url": "https://...",
+{"id": "...", "url": "https://undocking.example.com/<workspace>/<slug>", "upload_url": "https://...",
  "expires_in": 900, "method": "PUT", "status": "pending"}
 ```
 
@@ -65,6 +65,6 @@ Status flips `"pending"` → `"deployed"` automatically once the upload lands.
 ## List & delete
 
 ```bash
-GET    https://ship.example.com/v1/deployments       # newest first; includes status
-DELETE https://ship.example.com/v1/deployments/<id>  # soft-delete; returns 204
+GET    https://undocking.example.com/v1/deployments       # newest first; includes status
+DELETE https://undocking.example.com/v1/deployments/<id>  # soft-delete; returns 204
 ```

@@ -5,10 +5,10 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from ship_api.config import settings
-from ship_api.database import get_db
-from ship_api.main import app
-from ship_api.models import Deployment, User, Workspace
+from undocking_api.config import settings
+from undocking_api.database import get_db
+from undocking_api.main import app
+from undocking_api.models import Deployment, User, Workspace
 
 _SECRET = "test-event-secret"
 
@@ -60,7 +60,7 @@ async def test_create_event_marks_deployment_deployed(client, db):
 
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": _SECRET},
+        headers={"X-Undocking-Event-Secret": _SECRET},
         json={"action": "PutObject", "object": {"key": deployment.storage_key}},
     )
 
@@ -78,7 +78,7 @@ async def test_batched_events_accepted(client, db):
 
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": _SECRET},
+        headers={"X-Undocking-Event-Secret": _SECRET},
         json=[
             {"eventType": "PutObject", "object": {"key": first.storage_key}},
             {"eventType": "CompleteMultipartUpload", "object": {"key": second.storage_key}},
@@ -95,7 +95,7 @@ async def test_wrong_secret_is_unauthorized(client, db):
 
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": "nope"},
+        headers={"X-Undocking-Event-Secret": "nope"},
         json={"action": "PutObject", "object": {"key": deployment.storage_key}},
     )
 
@@ -120,7 +120,7 @@ async def test_missing_secret_is_unauthorized(client, db):
 async def test_unknown_key_is_noop_200(client, db):
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": _SECRET},
+        headers={"X-Undocking-Event-Secret": _SECRET},
         json={"action": "PutObject", "object": {"key": "unknown/key/source"}},
     )
 
@@ -134,7 +134,7 @@ async def test_non_create_action_ignored(client, db):
 
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": _SECRET},
+        headers={"X-Undocking-Event-Secret": _SECRET},
         json={"action": "DeleteObject", "object": {"key": deployment.storage_key}},
     )
 
@@ -150,7 +150,7 @@ async def test_webhook_503_when_secret_unset(client, db, monkeypatch):
 
     response = await client.post(
         "/internal/r2-events",
-        headers={"X-Ship-Event-Secret": "anything"},
+        headers={"X-Undocking-Event-Secret": "anything"},
         json={"action": "PutObject", "object": {"key": "k"}},
     )
 

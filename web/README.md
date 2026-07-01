@@ -1,6 +1,6 @@
-# Ship Web (admin panel)
+# Undocking Web (admin panel)
 
-The Next.js (App Router) admin panel for Ship. A browser dashboard for humans to
+The Next.js (App Router) admin panel for Undocking. A browser dashboard for humans to
 manage a workspace, separate from the agent-facing `sk_live_` API keys.
 
 ## Scope (phase 2)
@@ -90,6 +90,4 @@ npm run build
 
 ## License
 
-Apache-2.0, same as the rest of the open-source core. Paid-tier UI (billing,
-quotas, etc.) will live under a future `ee/` directory with a separate
-commercial license.
+Apache-2.0.

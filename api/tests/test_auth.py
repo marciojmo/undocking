@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 
 import pytest
 
-from ship_api import auth
-from ship_api.models import ApiKey, User, Workspace
+from undocking_api import auth
+from undocking_api.models import ApiKey, User, Workspace
 
 VALID_TOKEN = "sk_live_abcdef0123456789xyz"
 

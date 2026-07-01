@@ -17,14 +17,14 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: ship
-      POSTGRES_PASSWORD: ship
-      POSTGRES_DB: ship
+      POSTGRES_USER: undocking
+      POSTGRES_PASSWORD: undocking
+      POSTGRES_DB: undocking
     volumes:
       - postgres_data:/var/lib/postgresql
       - ./api/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ship -d ship"]
+      test: ["CMD-SHELL", "pg_isready -U undocking -d undocking"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,7 +38,7 @@ services:
       - path: ./api/.env
         required: false
     environment:
-      DATABASE_URL: postgresql://ship:ship@postgres:5432/ship
+      DATABASE_URL: postgresql://undocking:undocking@postgres:5432/undocking
       PUBLIC_BASE_URL: http://localhost:8000
       FRONTEND_URL: http://localhost:3000
       PUBLIC_API_URL: http://localhost:3000/api
@@ -52,7 +52,7 @@ services:
       - uv
       - run
       - uvicorn
-      - ship_api.main:app
+      - undocking_api.main:app
       - --host
       - 0.0.0.0
       - --port

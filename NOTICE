@@ -1,8 +1,6 @@
-Ship
+Undocking
 Copyright 2026 Márcio Oliveira
 
-This product includes software developed as part of the Ship project.
+This product includes software developed as part of the Undocking project.
 
-The open-source core of Ship is licensed under the Apache License, Version 2.0.
-Code under the (future) ee/ directory is not covered by that license and is
-governed by a separate commercial license.
+Licensed under the Apache License, Version 2.0.

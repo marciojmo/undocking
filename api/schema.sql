@@ -1,4 +1,4 @@
--- Ship API database schema (PostgreSQL).
+-- Undocking API database schema (PostgreSQL).
 --
 -- The MVP has no management endpoints, so workspaces and API keys are seeded
 -- directly. See the bottom of this file for a seeding example.

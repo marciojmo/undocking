@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from ship_api.auth import WorkspaceContext
-from ship_api.services import deployments as service
+from undocking_api.auth import WorkspaceContext
+from undocking_api.services import deployments as service
 
 
 @pytest.fixture(autouse=True)
