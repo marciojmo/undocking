@@ -1,7 +1,7 @@
 [project]
 name = "undocking-api"
 version = "0.1.0"
-description = "Deployment platform for HTML/Markdown artifacts. Upload via REST or MCP, get a public URL."
+description = "Deployment platform for agent generated artifacts. Upload via REST or MCP, get a public URL."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

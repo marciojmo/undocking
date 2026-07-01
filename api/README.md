@@ -1,6 +1,6 @@
 # Undocking API
 
-A deployment platform for HTML/Markdown artifacts. Upload content via REST or
+A deployment platform for agent generated artifacts. Upload content via REST or
 MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`.
 Auth is via bearer API keys scoped to a workspace. Designed for AI agents.
 

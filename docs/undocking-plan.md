@@ -2,7 +2,7 @@
 
 ## What this is
 
-A deployment platform for HTML/Markdown artifacts. Users upload content via REST or MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`. Auth is via bearer API keys scoped to a workspace. Designed for AI Agents.
+A deployment platform for agent generated artifacts. Users upload content via REST or MCP, get back a public URL, and the content is served at `/{workspace}/{slug}`. Auth is via bearer API keys scoped to a workspace. Designed for AI Agents.
 
 ### Upload model
 
