@@ -2,6 +2,16 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
+import {
+  isMockApiEnabled,
+  mockGetCurrentUser,
+  mockGetProviders,
+  mockGetWorkspace,
+  mockListApiKeys,
+  mockListDeployments,
+  mockListWorkspaces,
+} from "@/lib/dev-mocks";
+
 // The Next.js server calls the API directly (not through the browser proxy),
 // forwarding the caller's session cookie so the backend can authenticate the
 // request. Defaults to the local backend.
@@ -41,6 +51,11 @@ export interface Deployment {
   url: string;
 }
 
+/** Synthetic response when the backend is unreachable. */
+function unavailableResponse(): Response {
+  return new Response(null, { status: 503, statusText: "Service Unavailable" });
+}
+
 /** Calls the backend with the current request's cookies forwarded. */
 export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const cookieStore = await cookies();
@@ -49,7 +64,11 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   if (init?.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
-  return fetch(`${API_BASE}${path}`, { ...init, headers, cache: "no-store" });
+  try {
+    return await fetch(`${API_BASE}${path}`, { ...init, headers, cache: "no-store" });
+  } catch {
+    return unavailableResponse();
+  }
 }
 
 async function getJson<T>(path: string): Promise<T> {
@@ -62,6 +81,8 @@ async function getJson<T>(path: string): Promise<T> {
 
 /** Returns the signed-in user, or null when the session is missing/expired. */
 export async function getCurrentUser(): Promise<User | null> {
+  if (isMockApiEnabled()) return null;
+
   const res = await apiFetch("/auth/me");
   if (res.status === 401) return null;
   if (!res.ok) throw new Error(`GET /auth/me failed: ${res.status}`);
@@ -69,6 +90,8 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function getProviders(): Promise<string[]> {
+  if (isMockApiEnabled()) return mockGetProviders();
+
   const res = await apiFetch("/auth/providers");
   if (!res.ok) return [];
   const data = (await res.json()) as { providers: string[] };
@@ -76,11 +99,14 @@ export async function getProviders(): Promise<string[]> {
 }
 
 export function listWorkspaces(): Promise<Workspace[]> {
+  if (isMockApiEnabled()) return Promise.resolve(mockListWorkspaces());
   return getJson<Workspace[]>("/admin/workspaces");
 }
 
 /** Returns a workspace by id, or null when it isn't found / not owned. */
 export async function getWorkspace(id: string): Promise<Workspace | null> {
+  if (isMockApiEnabled()) return mockGetWorkspace(id);
+
   const res = await apiFetch(`/admin/workspaces/${id}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`GET workspace failed: ${res.status}`);
@@ -88,9 +114,11 @@ export async function getWorkspace(id: string): Promise<Workspace | null> {
 }
 
 export function listApiKeys(workspaceId: string): Promise<ApiKey[]> {
+  if (isMockApiEnabled()) return Promise.resolve(mockListApiKeys(workspaceId));
   return getJson<ApiKey[]>(`/admin/workspaces/${workspaceId}/keys`);
 }
 
 export function listDeployments(workspaceId: string): Promise<Deployment[]> {
+  if (isMockApiEnabled()) return Promise.resolve(mockListDeployments(workspaceId));
   return getJson<Deployment[]>(`/admin/workspaces/${workspaceId}/deployments`);
 }

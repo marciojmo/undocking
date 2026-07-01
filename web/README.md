@@ -33,7 +33,8 @@ src/app/
 ## Requirements
 
 - Node.js 20+
-- The [`../api`](../api) backend running (defaults to `http://localhost:8000`)
+- The [`../api`](../api) backend when using real auth and data (defaults to
+  `http://localhost:8000`). Not required for web-only UI development — see below.
 
 ## Setup
 
@@ -47,6 +48,7 @@ cp .env.example .env.local   # adjust if the API runs elsewhere
 
 - `API_PROXY_TARGET` — where the browser-facing `/api/*` proxy forwards to.
 - `API_INTERNAL_URL` — base URL the Next.js server uses for SSR data fetching.
+- `DEV_MOCK_API` — set to `true` for in-memory fixtures (no API or Postgres).
 
 ## Running
 
@@ -57,6 +59,27 @@ npm run dev      # http://localhost:3000
 Sign-in requires OAuth credentials configured on the API side (see
 [`../api/.env.example`](../api/.env.example)). With none set, the landing page
 shows that no providers are configured.
+
+## Web-only development
+
+Work on the landing page or dashboard UI without running the API or database:
+
+```bash
+cd web
+cp .env.example .env.local   # DEV_MOCK_API=true
+npm run dev                  # http://localhost:3000
+```
+
+With `DEV_MOCK_API=true`, the app serves in-memory fixtures (signed-in user,
+workspaces, API keys, deployments). A banner in the dashboard indicates mock
+mode. OAuth sign-in is bypassed — the fixture user is returned from
+`getCurrentUser`.
+
+Omit `DEV_MOCK_API` or set it to `false` when running against a real local API
+(`npm run dev` in web plus the API on port 8000).
+
+The landing page also degrades gracefully when the API is unreachable (no mock
+flag needed): sign-in shows no providers and the marketing sections still render.
 
 ## Development
 

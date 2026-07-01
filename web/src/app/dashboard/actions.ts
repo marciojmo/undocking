@@ -3,6 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { apiFetch, type ApiKeyCreated, type Workspace } from "@/lib/api";
+import {
+  isMockApiEnabled,
+  mockCreateWorkspace,
+  mockDeleteDeployment,
+  mockIssueKey,
+  mockRevokeKey,
+} from "@/lib/dev-mocks";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
@@ -13,6 +20,12 @@ export async function createWorkspaceAction(
 ): Promise<ActionResult<Workspace>> {
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Name is required" };
+
+  if (isMockApiEnabled()) {
+    const workspace = mockCreateWorkspace(trimmed);
+    revalidatePath("/dashboard");
+    return { ok: true, data: workspace };
+  }
 
   const res = await apiFetch("/admin/workspaces", {
     method: "POST",
@@ -31,6 +44,12 @@ export async function issueKeyAction(
   const trimmed = name.trim();
   if (!trimmed) return { ok: false, error: "Name is required" };
 
+  if (isMockApiEnabled()) {
+    const key = mockIssueKey(workspaceId, trimmed);
+    revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+    return { ok: true, data: key };
+  }
+
   const res = await apiFetch(`/admin/workspaces/${workspaceId}/keys`, {
     method: "POST",
     body: JSON.stringify({ name: trimmed }),
@@ -45,6 +64,14 @@ export async function revokeKeyAction(
   workspaceId: string,
   keyId: string,
 ): Promise<ActionResult> {
+  if (isMockApiEnabled()) {
+    if (!mockRevokeKey(workspaceId, keyId)) {
+      return { ok: false, error: "Could not revoke key" };
+    }
+    revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+    return { ok: true, data: undefined };
+  }
+
   const res = await apiFetch(`/admin/workspaces/${workspaceId}/keys/${keyId}`, {
     method: "DELETE",
   });
@@ -58,6 +85,14 @@ export async function deleteDeploymentAction(
   workspaceId: string,
   deploymentId: string,
 ): Promise<ActionResult> {
+  if (isMockApiEnabled()) {
+    if (!mockDeleteDeployment(workspaceId, deploymentId)) {
+      return { ok: false, error: "Could not delete deployment" };
+    }
+    revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+    return { ok: true, data: undefined };
+  }
+
   const res = await apiFetch(
     `/admin/workspaces/${workspaceId}/deployments/${deploymentId}`,
     { method: "DELETE" },
