@@ -57,4 +57,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.fastapi]
-entrypoint = "undocking_api.main:app" 
+entrypoint = "undocking_api.main:app"
+
+[tool.vercel]
+entrypoint = "src.undocking_api.main:app"
