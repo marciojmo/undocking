@@ -25,6 +25,7 @@ export function SignInButtons({ providers }: { providers: string[] }) {
     <div className="flex w-full flex-col gap-3 sm:w-auto">
       {providers.map((provider) => (
         <Button
+          nativeButton={false}
           key={provider}
           size="lg"
           className="w-full sm:w-72"
