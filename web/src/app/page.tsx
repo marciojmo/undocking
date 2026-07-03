@@ -56,13 +56,13 @@ export default async function LandingPage() {
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-32 text-center">
           <span className="mb-8 rounded-full border border-white/20 bg-white/5 px-3 py-1 text-xs text-white/60">
-            Deploy artifacts in a single call
+            Open-source deployment platform for agents.
           </span>
           <h1 className="max-w-3xl text-5xl font-bold tracking-tight sm:text-7xl">
             Deploy artifacts<br />in one call
           </h1>
           <p className="mt-6 max-w-lg text-lg text-white/60">
-            REST or MCP → public URL. Built for AI agents.
+            Local deployment → public URL. Built for AI agents.
           </p>
           <div className="mt-8 flex flex-col items-center gap-3">
             <SignInButtons providers={providers} />
