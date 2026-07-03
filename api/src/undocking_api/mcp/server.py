@@ -14,10 +14,22 @@ from ..config import settings
 from ..database import SessionLocal
 from ..instructions import agent_upload_guide
 from ..services import deployments as deployment_service
+from mcp.server.transport_security import TransportSecuritySettings
+
+
+# Explicitly configure security settings
+security_config = TransportSecuritySettings(
+    enable_dns_rebinding_protection=True,
+    allowed_hosts=[
+        "localhost:*",
+        "127.0.0.1:*",
+        "undocking.io:*",
+    ],
+)
 
 # streamable_http_path is set to "/" so that, once mounted at "/mcp" in main.py,
 # the endpoint is served at "/mcp" rather than the doubled-up "/mcp/mcp".
-mcp = FastMCP("undocking", streamable_http_path="/")
+mcp = FastMCP("undocking", streamable_http_path="/", transport_security=security_config)
 
 
 class _AuthError(Exception):
