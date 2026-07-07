@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Undocking — deploy HTML & Markdown in one call",
+  title: "Undocking — deploy agent generated content to the web in one call",
   description:
-    "Undocking turns HTML or Markdown into a public URL via REST or MCP. Built for AI agents.",
+    "Undocking turns agent generated content into a public, shareable URL. Built for AI agents.",
 };
 
 export default function RootLayout({
