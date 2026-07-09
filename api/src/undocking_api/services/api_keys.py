@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..auth import create_api_key
 from ..models import ApiKey
 
 logger = logging.getLogger(__name__)
@@ -59,3 +60,35 @@ async def revoke_api_key(db: AsyncSession, workspace_id: uuid.UUID, key_id: str)
         api_key.revoked_at = datetime.now(UTC)
         await db.commit()
         logger.info("Revoked API key %s in workspace %s", api_key.id, workspace_id)
+
+
+async def renew_api_key(db: AsyncSession, workspace_id: uuid.UUID) -> tuple[ApiKey, str]:
+    """Revokes every active key in a workspace and issues a fresh one.
+
+    Workspaces have a 1:1 relationship with their key, so this is normally
+    revoking a single key, but every currently-active key is revoked
+    defensively in case more than one somehow exists.
+
+    Args:
+        db: Async database session.
+        workspace_id: The workspace to rotate the key for.
+
+    Returns:
+        A tuple of the newly persisted ``ApiKey`` and its raw token.
+    """
+    active_keys = (
+        await db.execute(
+            select(ApiKey).where(ApiKey.workspace_id == workspace_id, ApiKey.revoked_at.is_(None))
+        )
+    ).scalars().all()
+
+    now = datetime.now(UTC)
+    for key in active_keys:
+        key.revoked_at = now
+    if active_keys:
+        await db.commit()
+        logger.info(
+            "Revoked %d API key(s) in workspace %s for renewal", len(active_keys), workspace_id
+        )
+
+    return await create_api_key(db, str(workspace_id))

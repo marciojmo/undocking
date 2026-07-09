@@ -2,8 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
-import { ApiKeysPanel } from "@/components/api-keys-panel";
+import { ConnectionPanel } from "@/components/connection-panel";
 import { DeploymentsList } from "@/components/deployments-list";
+import { EditableSlug } from "@/components/editable-slug";
 import { getWorkspace, listApiKeys, listDeployments } from "@/lib/api";
 
 export default async function WorkspaceDetailPage({
@@ -29,15 +30,12 @@ export default async function WorkspaceDetailPage({
           className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="size-4" />
-          Workspaces
+          Connected agents
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">{workspace.name}</h1>
-        <p className="font-mono text-sm text-muted-foreground">
-          /{workspace.slug}
-        </p>
+        <EditableSlug workspaceId={workspace.id} initialSlug={workspace.slug} />
       </div>
 
-      <ApiKeysPanel workspaceId={workspace.id} keys={keys} />
+      <ConnectionPanel workspaceId={workspace.id} keys={keys} />
       <DeploymentsList workspaceId={workspace.id} deployments={deployments} />
     </div>
   );

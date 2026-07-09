@@ -33,7 +33,7 @@ export interface Workspace {
 
 export interface ApiKey {
   id: string;
-  name: string;
+  name: string | null;
   key_prefix: string;
   created_at: string;
   revoked_at: string | null;
@@ -41,6 +41,11 @@ export interface ApiKey {
 
 export interface ApiKeyCreated extends ApiKey {
   key: string;
+}
+
+export interface AgentConnectResult {
+  workspace: Workspace;
+  key: ApiKeyCreated;
 }
 
 export interface Deployment {
@@ -81,7 +86,7 @@ async function getJson<T>(path: string): Promise<T> {
 
 /** Returns the signed-in user, or null when the session is missing/expired. */
 export async function getCurrentUser(): Promise<User | null> {
-  if (isMockApiEnabled()) return null;
+  if (isMockApiEnabled()) return mockGetCurrentUser();
 
   const res = await apiFetch("/auth/me");
   if (res.status === 401) return null;

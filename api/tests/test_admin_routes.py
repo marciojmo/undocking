@@ -90,3 +90,66 @@ async def test_cannot_touch_unowned_workspace(auth_client):
     unknown = str(uuid.uuid4())
     response = await auth_client.get(f"/admin/workspaces/{unknown}/keys")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_connect_agent_creates_workspace_and_key(auth_client):
+    response = await auth_client.post("/admin/agents")
+    assert response.status_code == 201
+    body = response.json()
+
+    assert body["workspace"]["slug"] == body["workspace"]["name"]
+    assert body["key"]["key"].startswith("sk_live_")
+    assert body["key"]["name"] is None
+
+    listed = await auth_client.get("/admin/workspaces")
+    assert [w["id"] for w in listed.json()] == [body["workspace"]["id"]]
+
+
+@pytest.mark.asyncio
+async def test_renew_key_revokes_old_and_returns_new(auth_client):
+    connected = (await auth_client.post("/admin/agents")).json()
+    ws_id = connected["workspace"]["id"]
+    old_key = connected["key"]["key"]
+
+    renewed = await auth_client.post(f"/admin/workspaces/{ws_id}/keys/renew")
+    assert renewed.status_code == 201
+    new_key = renewed.json()["key"]
+    assert new_key != old_key
+
+    keys = (await auth_client.get(f"/admin/workspaces/{ws_id}/keys")).json()
+    assert len(keys) == 2
+    active = [k for k in keys if k["revoked_at"] is None]
+    assert len(active) == 1
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_slug(auth_client):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+
+    updated = await auth_client.patch(
+        f"/admin/workspaces/{created['id']}", json={"slug": "new-slug"}
+    )
+    assert updated.status_code == 200
+    assert updated.json()["slug"] == "new-slug"
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_slug_conflict(auth_client):
+    await auth_client.post("/admin/workspaces", json={"name": "Taken"})
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+
+    response = await auth_client.patch(
+        f"/admin/workspaces/{created['id']}", json={"slug": "taken"}
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_update_workspace_slug_rejects_invalid_format(auth_client):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+
+    response = await auth_client.patch(
+        f"/admin/workspaces/{created['id']}", json={"slug": "Not Valid!"}
+    )
+    assert response.status_code == 422

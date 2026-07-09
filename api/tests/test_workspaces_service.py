@@ -63,3 +63,43 @@ async def test_get_owned_workspace_rejects_invalid_uuid(db):
 
     with pytest.raises(service.WorkspaceNotFoundError):
         await service.get_owned_workspace(db, owner.id, "not-a-uuid")
+
+
+@pytest.mark.asyncio
+async def test_create_workspace_generates_name_and_slug_when_omitted(db):
+    user = await _user(db)
+
+    workspace = await service.create_workspace(db, user.id)
+
+    assert workspace.name
+    assert workspace.slug == workspace.name
+
+
+@pytest.mark.asyncio
+async def test_update_slug_changes_slug(db):
+    user = await _user(db)
+    workspace = await service.create_workspace(db, user.id, "Acme")
+
+    updated = await service.update_slug(db, workspace, "new-slug")
+
+    assert updated.slug == "new-slug"
+
+
+@pytest.mark.asyncio
+async def test_update_slug_is_noop_when_unchanged(db):
+    user = await _user(db)
+    workspace = await service.create_workspace(db, user.id, "Acme")
+
+    updated = await service.update_slug(db, workspace, workspace.slug)
+
+    assert updated.slug == workspace.slug
+
+
+@pytest.mark.asyncio
+async def test_update_slug_raises_on_conflict(db):
+    user = await _user(db)
+    await service.create_workspace(db, user.id, "Taken")
+    workspace = await service.create_workspace(db, user.id, "Acme")
+
+    with pytest.raises(service.WorkspaceSlugTakenError):
+        await service.update_slug(db, workspace, "taken")

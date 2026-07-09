@@ -126,6 +126,10 @@ class WorkspaceCreate(BaseModel):
     name: str = Field(min_length=1, max_length=64)
 
 
+class WorkspaceUpdate(BaseModel):
+    slug: str = Field(min_length=1, max_length=64, pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
+
+
 class WorkspaceResponse(BaseModel):
     id: str
     slug: str
@@ -136,7 +140,7 @@ class WorkspaceResponse(BaseModel):
 
 class ApiKeyResponse(BaseModel):
     id: str
-    name: str
+    name: str | None
     key_prefix: str
     created_at: datetime
     revoked_at: datetime | None
@@ -150,3 +154,10 @@ class ApiKeyCreated(ApiKeyResponse):
     """Returned only at creation time; ``key`` is the raw token, shown once."""
 
     key: str
+
+
+class AgentConnectResponse(BaseModel):
+    """Returned when a workspace and its first API key are created together."""
+
+    workspace: WorkspaceResponse
+    key: ApiKeyCreated

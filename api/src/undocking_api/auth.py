@@ -23,7 +23,9 @@ def generate_api_key() -> str:
     return f"sk_live_{secrets.token_hex(24)}"
 
 
-async def create_api_key(db: AsyncSession, workspace_id: str, name: str) -> tuple[ApiKey, str]:
+async def create_api_key(
+    db: AsyncSession, workspace_id: str, name: str | None = None
+) -> tuple[ApiKey, str]:
     """Issues a new API key for a workspace, returning the row and the raw token.
 
     Only the SHA-256 hash and the 16-character prefix are persisted; the raw
@@ -33,7 +35,9 @@ async def create_api_key(db: AsyncSession, workspace_id: str, name: str) -> tupl
     Args:
         db: Async database session.
         workspace_id: The workspace the key is scoped to.
-        name: A human label for the key.
+        name: An optional human label for the key. Workspaces now have a 1:1
+            relationship with their key, so this is unset by every current
+            caller and kept only for backward compatibility.
 
     Returns:
         A tuple of the persisted ``ApiKey`` and the raw token string.

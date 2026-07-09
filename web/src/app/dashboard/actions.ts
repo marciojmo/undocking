@@ -2,83 +2,89 @@
 
 import { revalidatePath } from "next/cache";
 
-import { apiFetch, type ApiKeyCreated, type Workspace } from "@/lib/api";
+import {
+  apiFetch,
+  type AgentConnectResult,
+  type ApiKeyCreated,
+  type Workspace,
+} from "@/lib/api";
 import {
   isMockApiEnabled,
-  mockCreateWorkspace,
+  mockConnectAgent,
   mockDeleteDeployment,
-  mockIssueKey,
-  mockRevokeKey,
+  mockRenewKey,
+  mockUpdateWorkspaceSlug,
 } from "@/lib/dev-mocks";
 
 export type ActionResult<T = undefined> =
   | { ok: true; data: T }
   | { ok: false; error: string };
 
-export async function createWorkspaceAction(
-  name: string,
-): Promise<ActionResult<Workspace>> {
-  const trimmed = name.trim();
-  if (!trimmed) return { ok: false, error: "Name is required" };
-
+export async function connectAgentAction(): Promise<ActionResult<AgentConnectResult>> {
   if (isMockApiEnabled()) {
-    const workspace = mockCreateWorkspace(trimmed);
+    const result = mockConnectAgent();
     revalidatePath("/dashboard");
-    return { ok: true, data: workspace };
+    return { ok: true, data: result };
   }
 
-  const res = await apiFetch("/admin/workspaces", {
-    method: "POST",
-    body: JSON.stringify({ name: trimmed }),
-  });
-  if (!res.ok) return { ok: false, error: "Could not create workspace" };
+  const res = await apiFetch("/admin/agents", { method: "POST" });
+  if (!res.ok) return { ok: false, error: "Could not connect a new agent" };
 
+  const result = (await res.json()) as AgentConnectResult;
   revalidatePath("/dashboard");
-  return { ok: true, data: (await res.json()) as Workspace };
+  revalidatePath(`/dashboard/workspaces/${result.workspace.id}`);
+  return { ok: true, data: result };
 }
 
-export async function issueKeyAction(
+export async function renewKeyAction(
   workspaceId: string,
-  name: string,
 ): Promise<ActionResult<ApiKeyCreated>> {
-  const trimmed = name.trim();
-  if (!trimmed) return { ok: false, error: "Name is required" };
-
   if (isMockApiEnabled()) {
-    const key = mockIssueKey(workspaceId, trimmed);
+    const key = mockRenewKey(workspaceId);
     revalidatePath(`/dashboard/workspaces/${workspaceId}`);
     return { ok: true, data: key };
   }
 
-  const res = await apiFetch(`/admin/workspaces/${workspaceId}/keys`, {
+  const res = await apiFetch(`/admin/workspaces/${workspaceId}/keys/renew`, {
     method: "POST",
-    body: JSON.stringify({ name: trimmed }),
   });
-  if (!res.ok) return { ok: false, error: "Could not create API key" };
+  if (!res.ok) return { ok: false, error: "Could not renew the connection" };
 
   revalidatePath(`/dashboard/workspaces/${workspaceId}`);
   return { ok: true, data: (await res.json()) as ApiKeyCreated };
 }
 
-export async function revokeKeyAction(
+export async function updateWorkspaceSlugAction(
   workspaceId: string,
-  keyId: string,
-): Promise<ActionResult> {
+  slug: string,
+): Promise<ActionResult<Workspace>> {
+  const trimmed = slug.trim();
+  if (!trimmed) return { ok: false, error: "Slug is required" };
+
   if (isMockApiEnabled()) {
-    if (!mockRevokeKey(workspaceId, keyId)) {
-      return { ok: false, error: "Could not revoke key" };
-    }
+    const result = mockUpdateWorkspaceSlug(workspaceId, trimmed);
+    if (!result.ok) return result;
+    revalidatePath("/dashboard");
     revalidatePath(`/dashboard/workspaces/${workspaceId}`);
-    return { ok: true, data: undefined };
+    return result;
   }
 
-  const res = await apiFetch(`/admin/workspaces/${workspaceId}/keys/${keyId}`, {
-    method: "DELETE",
+  const res = await apiFetch(`/admin/workspaces/${workspaceId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ slug: trimmed }),
   });
-  if (!res.ok) return { ok: false, error: "Could not revoke key" };
+  if (res.status === 409) return { ok: false, error: "That slug is already taken" };
+  if (res.status === 422) {
+    return {
+      ok: false,
+      error: "Only lowercase letters, numbers, and hyphens are allowed",
+    };
+  }
+  if (!res.ok) return { ok: false, error: "Could not update slug" };
 
+  revalidatePath("/dashboard");
   revalidatePath(`/dashboard/workspaces/${workspaceId}`);
-  return { ok: true, data: undefined };
+  return { ok: true, data: (await res.json()) as Workspace };
 }
 
 export async function deleteDeploymentAction(

@@ -1,4 +1,11 @@
-import type { ApiKey, ApiKeyCreated, Deployment, User, Workspace } from "@/lib/api";
+import type {
+  AgentConnectResult,
+  ApiKey,
+  ApiKeyCreated,
+  Deployment,
+  User,
+  Workspace,
+} from "@/lib/api";
 
 export function isMockApiEnabled(): boolean {
   return (
@@ -88,13 +95,23 @@ function slugify(name: string): string {
     .slice(0, 48) || "workspace";
 }
 
-function uniqueSlug(base: string): string {
-  const existing = new Set(store.workspaces.map((w) => w.slug));
+function uniqueSlug(base: string, excludeId?: string): string {
+  const existing = new Set(
+    store.workspaces.filter((w) => w.id !== excludeId).map((w) => w.slug),
+  );
   if (!existing.has(base)) return base;
   let n = 2;
   while (existing.has(`${base}-${n}`)) n++;
   return `${base}-${n}`;
 }
+
+function randomSlug(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(10)))
+    .map((b) => (b % 36).toString(36))
+    .join("");
+}
+
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 function randomId(): string {
   return crypto.randomUUID();
@@ -131,12 +148,13 @@ export function mockListDeployments(workspaceId: string): Deployment[] {
   return [...(store.deployments[workspaceId] ?? [])];
 }
 
-export function mockCreateWorkspace(name: string): Workspace {
-  const slug = uniqueSlug(slugify(name));
+export function mockCreateWorkspace(name?: string): Workspace {
+  const base = name ? slugify(name) : randomSlug();
+  const slug = uniqueSlug(base);
   const workspace: Workspace = {
     id: randomId(),
     slug,
-    name,
+    name: name ?? slug,
     plan: "free",
     created_at: new Date().toISOString(),
   };
@@ -146,11 +164,11 @@ export function mockCreateWorkspace(name: string): Workspace {
   return workspace;
 }
 
-export function mockIssueKey(workspaceId: string, name: string): ApiKeyCreated {
+export function mockIssueKey(workspaceId: string): ApiKeyCreated {
   const key = randomKey();
   const apiKey: ApiKeyCreated = {
     id: randomId(),
-    name,
+    name: null,
     key_prefix: key.slice(0, 16),
     created_at: new Date().toISOString(),
     revoked_at: null,
@@ -161,6 +179,21 @@ export function mockIssueKey(workspaceId: string, name: string): ApiKeyCreated {
   return apiKey;
 }
 
+export function mockConnectAgent(): AgentConnectResult {
+  const workspace = mockCreateWorkspace();
+  const key = mockIssueKey(workspace.id);
+  return { workspace, key };
+}
+
+export function mockRenewKey(workspaceId: string): ApiKeyCreated {
+  const keys = store.keys[workspaceId] ?? [];
+  const now = new Date().toISOString();
+  for (const key of keys) {
+    if (!key.revoked_at) key.revoked_at = now;
+  }
+  return mockIssueKey(workspaceId);
+}
+
 export function mockRevokeKey(workspaceId: string, keyId: string): boolean {
   const keys = store.keys[workspaceId];
   if (!keys) return false;
@@ -168,6 +201,23 @@ export function mockRevokeKey(workspaceId: string, keyId: string): boolean {
   if (!key || key.revoked_at) return false;
   key.revoked_at = new Date().toISOString();
   return true;
+}
+
+export function mockUpdateWorkspaceSlug(
+  workspaceId: string,
+  slug: string,
+): { ok: true; data: Workspace } | { ok: false; error: string } {
+  const workspace = store.workspaces.find((w) => w.id === workspaceId);
+  if (!workspace) return { ok: false, error: "Workspace not found" };
+  if (!SLUG_PATTERN.test(slug)) {
+    return { ok: false, error: "Only lowercase letters, numbers, and hyphens are allowed" };
+  }
+  if (slug === workspace.slug) return { ok: true, data: workspace };
+  if (uniqueSlug(slug, workspaceId) !== slug) {
+    return { ok: false, error: "That slug is already taken" };
+  }
+  workspace.slug = slug;
+  return { ok: true, data: workspace };
 }
 
 export function mockDeleteDeployment(workspaceId: string, deploymentId: string): boolean {

@@ -41,7 +41,7 @@ class ApiKey(Base):
     workspace_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("workspaces.id"))
     key_hash: Mapped[str]
     key_prefix: Mapped[str]
-    name: Mapped[str]
+    name: Mapped[str | None]
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 

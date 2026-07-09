@@ -26,12 +26,15 @@ CREATE TABLE IF NOT EXISTS api_keys (
     workspace_id UUID NOT NULL REFERENCES workspaces (id),
     key_hash     TEXT NOT NULL,
     key_prefix   TEXT NOT NULL,
-    name         TEXT NOT NULL,
+    name         TEXT,
     revoked_at   TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS api_keys_prefix_idx ON api_keys (key_prefix);
+
+-- Existing databases created before api_keys.name became nullable:
+--   ALTER TABLE api_keys ALTER COLUMN name DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS deployments (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

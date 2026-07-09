@@ -67,3 +67,29 @@ async def test_revoke_api_key_raises_for_unknown_id(db):
 
     with pytest.raises(service.ApiKeyNotFoundError):
         await service.revoke_api_key(db, workspace.id, str(uuid.uuid4()))
+
+
+@pytest.mark.asyncio
+async def test_renew_api_key_revokes_old_and_issues_new(db):
+    workspace = await _workspace(db)
+    old_key, old_raw = await create_api_key(db, str(workspace.id))
+
+    new_key, new_raw = await service.renew_api_key(db, workspace.id)
+
+    assert new_raw != old_raw
+    assert new_key.id != old_key.id
+    assert await resolve_api_key(old_raw, db) is None
+    context = await resolve_api_key(new_raw, db)
+    assert context is not None
+    assert context.workspace_id == str(workspace.id)
+
+
+@pytest.mark.asyncio
+async def test_renew_api_key_with_no_active_key(db):
+    workspace = await _workspace(db)
+
+    key, raw = await service.renew_api_key(db, workspace.id)
+
+    assert raw.startswith("sk_live_")
+    context = await resolve_api_key(raw, db)
+    assert context is not None

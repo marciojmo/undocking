@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Rocket } from "lucide-react";
+import { Anchor } from "lucide-react";
 
 import { LogoutButton } from "@/components/logout-button";
 import { getCurrentUser } from "@/lib/api";
@@ -26,7 +26,7 @@ export default async function DashboardLayout({
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
           <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-            <Rocket className="size-5" />
+            <Anchor className="size-5" />
             Undocking
           </Link>
           <div className="flex items-center gap-4">

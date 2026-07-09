@@ -20,7 +20,13 @@ class WorkspaceNotFoundError(Exception):
     """Raised when no workspace owned by the user matches the given ID."""
 
 
-async def create_workspace(db: AsyncSession, owner_id: uuid.UUID, name: str) -> Workspace:
+class WorkspaceSlugTakenError(Exception):
+    """Raised when a requested slug is already used by another workspace."""
+
+
+async def create_workspace(
+    db: AsyncSession, owner_id: uuid.UUID, name: str | None = None
+) -> Workspace:
     """Creates a workspace owned by ``owner_id`` with a globally unique slug.
 
     The slug is derived from the name; on collision (slugs are unique across all
@@ -29,11 +35,13 @@ async def create_workspace(db: AsyncSession, owner_id: uuid.UUID, name: str) -> 
     Args:
         db: Async database session.
         owner_id: The owning user's ID.
-        name: Human-readable workspace name.
+        name: Human-readable workspace name. When omitted, a random slug is
+            generated and used as both the name and the slug.
 
     Returns:
         The persisted workspace.
     """
+    name = name or generate_slug()
     base = sanitize_slug(name) or generate_slug()
     slug = base
     while await _slug_taken(db, slug):
@@ -44,6 +52,36 @@ async def create_workspace(db: AsyncSession, owner_id: uuid.UUID, name: str) -> 
     await db.commit()
     await db.refresh(workspace)
     logger.info("Created workspace %s (%s) for user %s", workspace.id, slug, owner_id)
+    return workspace
+
+
+async def update_slug(db: AsyncSession, workspace: Workspace, new_slug: str) -> Workspace:
+    """Updates a workspace's slug, enforcing global uniqueness.
+
+    The caller (route layer) is responsible for rejecting malformed slugs via
+    schema validation, so this only handles the uniqueness check.
+
+    Args:
+        db: Async database session.
+        workspace: The workspace to update.
+        new_slug: The already-validated candidate slug.
+
+    Returns:
+        The persisted workspace.
+
+    Raises:
+        WorkspaceSlugTakenError: If another workspace already uses ``new_slug``.
+    """
+    if new_slug == workspace.slug:
+        return workspace
+
+    if await _slug_taken(db, new_slug):
+        raise WorkspaceSlugTakenError(new_slug)
+
+    workspace.slug = new_slug
+    await db.commit()
+    await db.refresh(workspace)
+    logger.info("Renamed workspace %s slug to %s", workspace.id, new_slug)
     return workspace
 
 

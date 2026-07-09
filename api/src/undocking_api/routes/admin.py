@@ -15,12 +15,14 @@ from ..config import settings
 from ..database import get_db
 from ..models import User, Workspace
 from ..schemas import (
+    AgentConnectResponse,
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyResponse,
     DeploymentItem,
     WorkspaceCreate,
     WorkspaceResponse,
+    WorkspaceUpdate,
 )
 from ..services import api_keys as api_key_service
 from ..services import deployments as deployment_service
@@ -81,6 +83,43 @@ async def get_workspace(
     return _to_workspace_response(workspace)
 
 
+@router.patch("/workspaces/{workspace_id}", response_model=WorkspaceResponse)
+async def update_workspace(
+    workspace_id: str,
+    body: WorkspaceUpdate,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> WorkspaceResponse:
+    """Updates a workspace's slug."""
+    workspace = await _owned_workspace(workspace_id, user, db)
+    try:
+        workspace = await workspace_service.update_slug(db, workspace, body.slug)
+    except workspace_service.WorkspaceSlugTakenError as error:
+        raise HTTPException(409, f'Slug "{error}" is already taken') from error
+    return _to_workspace_response(workspace)
+
+
+@router.post("/agents", response_model=AgentConnectResponse, status_code=201)
+async def connect_agent(
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> AgentConnectResponse:
+    """Creates a workspace with an auto-generated slug and issues its first API key."""
+    workspace = await workspace_service.create_workspace(db, user.id)
+    key, raw = await create_api_key(db, str(workspace.id))
+    return AgentConnectResponse(
+        workspace=_to_workspace_response(workspace),
+        key=ApiKeyCreated(
+            id=str(key.id),
+            name=key.name,
+            key_prefix=key.key_prefix,
+            created_at=key.created_at,
+            revoked_at=key.revoked_at,
+            key=raw,
+        ),
+    )
+
+
 @router.get("/workspaces/{workspace_id}/keys", response_model=list[ApiKeyResponse])
 async def list_keys(
     workspace_id: str,
@@ -112,6 +151,25 @@ async def create_key(
     """Issues a new API key and returns the raw token once."""
     workspace = await _owned_workspace(workspace_id, user, db)
     key, raw = await create_api_key(db, str(workspace.id), body.name)
+    return ApiKeyCreated(
+        id=str(key.id),
+        name=key.name,
+        key_prefix=key.key_prefix,
+        created_at=key.created_at,
+        revoked_at=key.revoked_at,
+        key=raw,
+    )
+
+
+@router.post("/workspaces/{workspace_id}/keys/renew", response_model=ApiKeyCreated, status_code=201)
+async def renew_key(
+    workspace_id: str,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> ApiKeyCreated:
+    """Revokes the workspace's current key(s) and issues a fresh one."""
+    workspace = await _owned_workspace(workspace_id, user, db)
+    key, raw = await api_key_service.renew_api_key(db, workspace.id)
     return ApiKeyCreated(
         id=str(key.id),
         name=key.name,
