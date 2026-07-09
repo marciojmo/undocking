@@ -88,7 +88,11 @@ async def resolve_api_key(token: str, db: AsyncSession) -> WorkspaceContext | No
         await db.execute(
             select(ApiKey.id, ApiKey.revoked_at, Workspace.id, Workspace.slug)
             .join(Workspace, ApiKey.workspace_id == Workspace.id)
-            .where(ApiKey.key_prefix == prefix, ApiKey.key_hash == key_hash)
+            .where(
+                ApiKey.key_prefix == prefix,
+                ApiKey.key_hash == key_hash,
+                Workspace.deleted_at.is_(None),
+            )
             .limit(1)
         )
     ).first()

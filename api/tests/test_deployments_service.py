@@ -233,3 +233,80 @@ async def test_delete_deployment_enforces_workspace_isolation(db, mock_storage):
 
     with pytest.raises(service.DeploymentNotFoundError):
         await service.delete_deployment(db, intruder, str(deployment.id))
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_soft_deletes_given_ids(db, mock_storage):
+    workspace = _workspace()
+    a = await service.create_inline_deployment(db, workspace, content_type="text/markdown", slug="a", content="x")
+    b = await service.create_inline_deployment(db, workspace, content_type="text/markdown", slug="b", content="x")
+    c = await service.create_inline_deployment(db, workspace, content_type="text/markdown", slug="c", content="x")
+
+    deleted = await service.delete_deployments(db, workspace, [str(a.id), str(b.id)])
+
+    assert set(deleted) == {str(a.id), str(b.id)}
+    remaining = await service.list_deployments(db, workspace)
+    assert [d.id for d in remaining] == [c.id]
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_skips_unknown_ids(db, mock_storage):
+    workspace = _workspace()
+    real = await service.create_inline_deployment(db, workspace, content_type="text/markdown", content="x")
+
+    deleted = await service.delete_deployments(db, workspace, [str(real.id), str(uuid.uuid4())])
+
+    assert deleted == [str(real.id)]
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_skips_ids_from_other_workspace(db, mock_storage):
+    owner = _workspace("owner")
+    intruder = _workspace("intruder")
+    deployment = await service.create_inline_deployment(db, owner, content_type="text/markdown", content="x")
+
+    deleted = await service.delete_deployments(db, intruder, [str(deployment.id)])
+
+    assert deleted == []
+    assert await service.list_deployments(db, owner) != []
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_skips_already_deleted_ids(db, mock_storage):
+    workspace = _workspace()
+    deployment = await service.create_inline_deployment(db, workspace, content_type="text/markdown", content="x")
+    await service.delete_deployment(db, workspace, str(deployment.id))
+
+    deleted = await service.delete_deployments(db, workspace, [str(deployment.id)])
+
+    assert deleted == []
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_skips_invalid_uuid_strings(db, mock_storage):
+    workspace = _workspace()
+    real = await service.create_inline_deployment(db, workspace, content_type="text/markdown", content="x")
+
+    deleted = await service.delete_deployments(db, workspace, [str(real.id), "not-a-uuid"])
+
+    assert deleted == [str(real.id)]
+
+
+@pytest.mark.asyncio
+async def test_delete_deployments_bulk_returns_empty_list_for_empty_or_all_invalid_input(db, mock_storage):
+    workspace = _workspace()
+
+    assert await service.delete_deployments(db, workspace, []) == []
+    assert await service.delete_deployments(db, workspace, ["not-a-uuid", "also-bad"]) == []
+
+
+@pytest.mark.asyncio
+async def test_has_active_deployments_true_and_false(db, mock_storage):
+    workspace = _workspace()
+    assert await service.has_active_deployments(db, uuid.UUID(workspace.workspace_id)) is False
+
+    deployment = await service.create_inline_deployment(db, workspace, content_type="text/markdown", content="x")
+    assert await service.has_active_deployments(db, uuid.UUID(workspace.workspace_id)) is True
+
+    await service.delete_deployment(db, workspace, str(deployment.id))
+    assert await service.has_active_deployments(db, uuid.UUID(workspace.workspace_id)) is False

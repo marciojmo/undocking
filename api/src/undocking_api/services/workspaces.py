@@ -6,12 +6,14 @@ the requester owns, enforced by :func:`get_owned_workspace`.
 
 import logging
 import uuid
+from datetime import UTC, datetime
 
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Workspace
 from ..slug import generate_slug, sanitize_slug
+from .deployments import has_active_deployments
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,10 @@ class WorkspaceNotFoundError(Exception):
 
 class WorkspaceSlugTakenError(Exception):
     """Raised when a requested slug is already used by another workspace."""
+
+
+class WorkspaceHasDeploymentsError(Exception):
+    """Raised when workspace deletion is attempted while active deployments remain."""
 
 
 async def create_workspace(
@@ -89,7 +95,7 @@ async def list_workspaces(db: AsyncSession, owner_id: uuid.UUID) -> list[Workspa
     """Returns the user's workspaces, newest first."""
     result = await db.execute(
         select(Workspace)
-        .where(Workspace.owner_id == owner_id)
+        .where(Workspace.owner_id == owner_id, Workspace.deleted_at.is_(None))
         .order_by(desc(Workspace.created_at))
     )
     return list(result.scalars().all())
@@ -117,7 +123,11 @@ async def get_owned_workspace(
     workspace = (
         await db.execute(
             select(Workspace)
-            .where(Workspace.id == parsed_id, Workspace.owner_id == owner_id)
+            .where(
+                Workspace.id == parsed_id,
+                Workspace.owner_id == owner_id,
+                Workspace.deleted_at.is_(None),
+            )
             .limit(1)
         )
     ).scalar_one_or_none()
@@ -126,6 +136,34 @@ async def get_owned_workspace(
     return workspace
 
 
+async def delete_workspace(db: AsyncSession, workspace: Workspace) -> None:
+    """Soft-deletes a workspace, provided it has no active deployments.
+
+    Does not touch the workspace's API keys: :func:`auth.resolve_api_key`
+    excludes soft-deleted workspaces, so those keys simply stop resolving. A
+    background job outside this repo hard-deletes soft-deleted workspaces
+    (and their deployments/keys) after a retention window.
+
+    Args:
+        db: Async database session.
+        workspace: The already-fetched, owned workspace to delete.
+
+    Raises:
+        WorkspaceHasDeploymentsError: If the workspace still has one or more
+            active (non-soft-deleted) deployments.
+    """
+    if await has_active_deployments(db, workspace.id):
+        raise WorkspaceHasDeploymentsError(str(workspace.id))
+
+    workspace.deleted_at = datetime.now(UTC)
+    await db.commit()
+    logger.info("Soft-deleted workspace %s", workspace.id)
+
+
 async def _slug_taken(db: AsyncSession, slug: str) -> bool:
-    result = await db.execute(select(Workspace.id).where(Workspace.slug == slug).limit(1))
+    result = await db.execute(
+        select(Workspace.id)
+        .where(Workspace.slug == slug, Workspace.deleted_at.is_(None))
+        .limit(1)
+    )
     return result.first() is not None

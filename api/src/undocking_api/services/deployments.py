@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth import WorkspaceContext
@@ -228,6 +228,63 @@ async def delete_deployment(
 
     deployment.deleted_at = datetime.now(UTC)
     await db.commit()
+
+
+async def has_active_deployments(db: AsyncSession, workspace_id: uuid.UUID) -> bool:
+    """Returns whether the workspace still has any active (non-soft-deleted) deployment."""
+    result = await db.execute(
+        select(Deployment.id)
+        .where(Deployment.workspace_id == workspace_id, Deployment.deleted_at.is_(None))
+        .limit(1)
+    )
+    return result.first() is not None
+
+
+async def delete_deployments(
+    db: AsyncSession,
+    workspace: WorkspaceContext,
+    deployment_ids: list[str],
+) -> list[str]:
+    """Soft-deletes the given deployments owned by the workspace, best-effort.
+
+    IDs that aren't valid UUIDs, don't belong to this workspace, or are already
+    soft-deleted are silently skipped rather than raising — the caller only
+    needs to know which IDs were actually deleted.
+
+    Args:
+        db: Async database session.
+        workspace: The authenticated/owning workspace.
+        deployment_ids: Candidate IDs; invalid/foreign/already-deleted entries
+            are ignored rather than raising.
+
+    Returns:
+        The subset of ``deployment_ids`` that were actually soft-deleted.
+    """
+    parsed_ids: list[uuid.UUID] = []
+    for raw_id in deployment_ids:
+        try:
+            parsed_ids.append(uuid.UUID(raw_id))
+        except ValueError:
+            continue
+    if not parsed_ids:
+        return []
+
+    result = await db.execute(
+        update(Deployment)
+        .where(
+            Deployment.id.in_(parsed_ids),
+            Deployment.workspace_id == uuid.UUID(workspace.workspace_id),
+            Deployment.deleted_at.is_(None),
+        )
+        .values(deleted_at=datetime.now(UTC))
+        .returning(Deployment.id)
+    )
+    deleted_ids = [str(row[0]) for row in result.all()]
+    await db.commit()
+    logger.info(
+        "Bulk-deleted %d deployment(s) in workspace %s", len(deleted_ids), workspace.workspace_slug
+    )
+    return deleted_ids
 
 
 async def _resolve_slug(db: AsyncSession, workspace_id: str, slug: str | None) -> str:

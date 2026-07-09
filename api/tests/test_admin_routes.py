@@ -5,9 +5,11 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
+from undocking_api.auth import WorkspaceContext
 from undocking_api.database import get_db
 from undocking_api.main import app
 from undocking_api.models import User
+from undocking_api.services import deployments as deployment_service
 from undocking_api.session_auth import require_user
 
 
@@ -18,6 +20,25 @@ async def user(db) -> User:
     await db.commit()
     await db.refresh(account)
     return account
+
+
+@pytest.fixture(autouse=True)
+def mock_storage(monkeypatch):
+    """Replaces R2 access with an in-memory no-op so tests don't hit the network."""
+
+    async def fake_upload(key: str, content: str | bytes, content_type: str) -> None:
+        pass
+
+    monkeypatch.setattr(deployment_service, "upload_artifact", fake_upload)
+
+
+async def _deploy(db, workspace_id: str, workspace_slug: str = "acme") -> str:
+    """Creates an active deployment directly via the service layer (no admin route exists to do this)."""
+    context = WorkspaceContext(workspace_id=workspace_id, workspace_slug=workspace_slug, api_key_id="")
+    deployment = await deployment_service.create_inline_deployment(
+        db, context, content_type="text/markdown", content="x"
+    )
+    return str(deployment.id)
 
 
 @pytest_asyncio.fixture
@@ -83,6 +104,15 @@ async def test_issue_list_and_revoke_api_key(auth_client):
 
     after = (await auth_client.get(f"/admin/workspaces/{ws_id}/keys")).json()
     assert after[0]["revoked_at"] is not None
+
+
+@pytest.mark.asyncio
+async def test_create_key_without_name_is_allowed(auth_client):
+    workspace = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+
+    issued = await auth_client.post(f"/admin/workspaces/{workspace['id']}/keys", json={})
+    assert issued.status_code == 201
+    assert issued.json()["name"] is None
 
 
 @pytest.mark.asyncio
@@ -153,3 +183,85 @@ async def test_update_workspace_slug_rejects_invalid_format(auth_client):
         f"/admin/workspaces/{created['id']}", json={"slug": "Not Valid!"}
     )
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_succeeds_with_no_deployments(auth_client):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+
+    response = await auth_client.delete(f"/admin/workspaces/{created['id']}")
+    assert response.status_code == 204
+
+    after = await auth_client.get(f"/admin/workspaces/{created['id']}")
+    assert after.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_fails_with_active_deployments(auth_client, db):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+    await _deploy(db, created["id"], created["slug"])
+
+    response = await auth_client.delete(f"/admin/workspaces/{created['id']}")
+    assert response.status_code == 409
+
+    after = await auth_client.get(f"/admin/workspaces/{created['id']}")
+    assert after.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_requires_ownership(auth_client):
+    unknown = str(uuid.uuid4())
+    response = await auth_client.delete(f"/admin/workspaces/{unknown}")
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_deployments_happy_path(auth_client, db):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+    first_id = await _deploy(db, created["id"], created["slug"])
+    second_id = await _deploy(db, created["id"], created["slug"])
+
+    response = await auth_client.post(
+        f"/admin/workspaces/{created['id']}/deployments/bulk-delete",
+        json={"deployment_ids": [first_id, second_id]},
+    )
+    assert response.status_code == 200
+    assert set(response.json()["deleted_ids"]) == {first_id, second_id}
+
+    listed = await auth_client.get(f"/admin/workspaces/{created['id']}/deployments")
+    assert listed.json() == []
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_deployments_partial_ids_skipped(auth_client, db):
+    created = (await auth_client.post("/admin/workspaces", json={"name": "Acme"})).json()
+    real_id = await _deploy(db, created["id"], created["slug"])
+
+    response = await auth_client.post(
+        f"/admin/workspaces/{created['id']}/deployments/bulk-delete",
+        json={"deployment_ids": [real_id, str(uuid.uuid4())]},
+    )
+    assert response.status_code == 200
+    assert response.json()["deleted_ids"] == [real_id]
+
+
+@pytest.mark.asyncio
+async def test_bulk_delete_deployments_requires_ownership(auth_client, db):
+    other_user = User(email="other@example.com", name="Other")
+    db.add(other_user)
+    await db.commit()
+    await db.refresh(other_user)
+
+    from undocking_api.services import workspaces as workspace_service
+
+    other_workspace = await workspace_service.create_workspace(db, other_user.id, "Theirs")
+    foreign_id = await _deploy(db, str(other_workspace.id), other_workspace.slug)
+
+    mine = (await auth_client.post("/admin/workspaces", json={"name": "Mine"})).json()
+
+    response = await auth_client.post(
+        f"/admin/workspaces/{mine['id']}/deployments/bulk-delete",
+        json={"deployment_ids": [foreign_id]},
+    )
+    assert response.status_code == 200
+    assert response.json()["deleted_ids"] == []

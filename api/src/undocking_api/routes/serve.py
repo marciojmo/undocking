@@ -25,7 +25,11 @@ async def serve(
 ) -> Response:
     """Serves a deployed artifact with its native MIME type, or a JSON error if missing."""
     workspace = (
-        await db.execute(select(Workspace).where(Workspace.slug == workspace_slug).limit(1))
+        await db.execute(
+            select(Workspace)
+            .where(Workspace.slug == workspace_slug, Workspace.deleted_at.is_(None))
+            .limit(1)
+        )
     ).scalar_one_or_none()
     if not workspace:
         return JSONResponse({"error": "Not found"}, 404)

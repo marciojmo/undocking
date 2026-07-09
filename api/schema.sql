@@ -18,8 +18,12 @@ CREATE TABLE IF NOT EXISTS workspaces (
     name       TEXT NOT NULL,
     owner_id   UUID NOT NULL REFERENCES users (id),
     plan       TEXT NOT NULL DEFAULT 'free',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at TIMESTAMPTZ
 );
+
+-- Existing databases created before workspaces.deleted_at was added:
+--   ALTER TABLE workspaces ADD COLUMN deleted_at TIMESTAMPTZ;
 
 CREATE TABLE IF NOT EXISTS api_keys (
     id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

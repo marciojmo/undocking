@@ -109,6 +109,14 @@ class DeploymentItem(BaseModel):
     url: str
 
 
+class BulkDeleteDeploymentsRequest(BaseModel):
+    deployment_ids: list[str] = Field(min_length=1, max_length=200)
+
+
+class BulkDeleteDeploymentsResponse(BaseModel):
+    deleted_ids: list[str]
+
+
 # --- Dashboard (phase 2) ---------------------------------------------------
 
 
@@ -147,7 +155,7 @@ class ApiKeyResponse(BaseModel):
 
 
 class ApiKeyCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=64)
+    name: str | None = Field(default=None, max_length=64)
 
 
 class ApiKeyCreated(ApiKeyResponse):

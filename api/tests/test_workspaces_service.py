@@ -1,7 +1,19 @@
 import pytest
 
+from undocking_api.auth import WorkspaceContext
 from undocking_api.models import User
+from undocking_api.services import deployments as deployment_service
 from undocking_api.services import workspaces as service
+
+
+@pytest.fixture(autouse=True)
+def mock_storage(monkeypatch):
+    """Replaces R2 access with in-memory captures so tests don't hit the network."""
+
+    async def fake_upload(key: str, content: str | bytes, content_type: str) -> None:
+        pass
+
+    monkeypatch.setattr(deployment_service, "upload_artifact", fake_upload)
 
 
 async def _user(db, email: str = "owner@example.com") -> User:
@@ -103,3 +115,63 @@ async def test_update_slug_raises_on_conflict(db):
 
     with pytest.raises(service.WorkspaceSlugTakenError):
         await service.update_slug(db, workspace, "taken")
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_soft_deletes_when_no_active_deployments(db):
+    user = await _user(db)
+    workspace = await service.create_workspace(db, user.id, "Acme")
+
+    await service.delete_workspace(db, workspace)
+
+    assert workspace.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_raises_when_active_deployments_exist(db):
+    user = await _user(db)
+    workspace = await service.create_workspace(db, user.id, "Acme")
+    context = WorkspaceContext(workspace_id=str(workspace.id), workspace_slug=workspace.slug, api_key_id="")
+    await deployment_service.create_inline_deployment(
+        db, context, content_type="text/markdown", content="x"
+    )
+
+    with pytest.raises(service.WorkspaceHasDeploymentsError):
+        await service.delete_workspace(db, workspace)
+
+
+@pytest.mark.asyncio
+async def test_delete_workspace_allowed_when_all_deployments_soft_deleted(db):
+    user = await _user(db)
+    workspace = await service.create_workspace(db, user.id, "Acme")
+    context = WorkspaceContext(workspace_id=str(workspace.id), workspace_slug=workspace.slug, api_key_id="")
+    deployment = await deployment_service.create_inline_deployment(
+        db, context, content_type="text/markdown", content="x"
+    )
+    await deployment_service.delete_deployment(db, context, str(deployment.id))
+
+    await service.delete_workspace(db, workspace)
+
+    assert workspace.deleted_at is not None
+
+
+@pytest.mark.asyncio
+async def test_list_workspaces_excludes_soft_deleted(db):
+    owner = await _user(db)
+    kept = await service.create_workspace(db, owner.id, "Kept")
+    deleted = await service.create_workspace(db, owner.id, "Deleted")
+    await service.delete_workspace(db, deleted)
+
+    listed = await service.list_workspaces(db, owner.id)
+
+    assert [w.id for w in listed] == [kept.id]
+
+
+@pytest.mark.asyncio
+async def test_get_owned_workspace_excludes_soft_deleted(db):
+    owner = await _user(db)
+    workspace = await service.create_workspace(db, owner.id, "Acme")
+    await service.delete_workspace(db, workspace)
+
+    with pytest.raises(service.WorkspaceNotFoundError):
+        await service.get_owned_workspace(db, owner.id, str(workspace.id))

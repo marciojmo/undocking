@@ -66,3 +66,12 @@ async def test_resolve_api_key_rejects_wrong_prefix_scheme(db):
 @pytest.mark.asyncio
 async def test_resolve_api_key_rejects_too_short_token(db):
     assert await auth.resolve_api_key("sk_live_short", db) is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_api_key_rejects_token_for_deleted_workspace(db):
+    workspace = await _seed_key(db)
+    workspace.deleted_at = datetime.now(UTC)
+    await db.commit()
+
+    assert await auth.resolve_api_key(VALID_TOKEN, db) is None

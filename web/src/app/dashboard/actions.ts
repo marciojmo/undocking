@@ -10,8 +10,10 @@ import {
 } from "@/lib/api";
 import {
   isMockApiEnabled,
+  mockBulkDeleteDeployments,
   mockConnectAgent,
   mockDeleteDeployment,
+  mockDeleteWorkspace,
   mockRenewKey,
   mockUpdateWorkspaceSlug,
 } from "@/lib/dev-mocks";
@@ -106,5 +108,53 @@ export async function deleteDeploymentAction(
   if (!res.ok) return { ok: false, error: "Could not delete deployment" };
 
   revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+  return { ok: true, data: undefined };
+}
+
+export async function bulkDeleteDeploymentsAction(
+  workspaceId: string,
+  deploymentIds: string[],
+): Promise<ActionResult<{ deletedIds: string[] }>> {
+  if (deploymentIds.length === 0) return { ok: true, data: { deletedIds: [] } };
+
+  if (isMockApiEnabled()) {
+    const deletedIds = mockBulkDeleteDeployments(workspaceId, deploymentIds);
+    revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+    return { ok: true, data: { deletedIds } };
+  }
+
+  const res = await apiFetch(
+    `/admin/workspaces/${workspaceId}/deployments/bulk-delete`,
+    {
+      method: "POST",
+      body: JSON.stringify({ deployment_ids: deploymentIds }),
+    },
+  );
+  if (!res.ok) return { ok: false, error: "Could not delete deployments" };
+
+  const body = (await res.json()) as { deleted_ids: string[] };
+  revalidatePath(`/dashboard/workspaces/${workspaceId}`);
+  return { ok: true, data: { deletedIds: body.deleted_ids } };
+}
+
+export async function deleteWorkspaceAction(
+  workspaceId: string,
+): Promise<ActionResult> {
+  if (isMockApiEnabled()) {
+    const result = mockDeleteWorkspace(workspaceId);
+    if (!result.ok) return result;
+    revalidatePath("/dashboard");
+    return { ok: true, data: undefined };
+  }
+
+  const res = await apiFetch(`/admin/workspaces/${workspaceId}`, {
+    method: "DELETE",
+  });
+  if (res.status === 409) {
+    return { ok: false, error: "Delete all deployments before deleting this agent" };
+  }
+  if (!res.ok) return { ok: false, error: "Could not delete this agent" };
+
+  revalidatePath("/dashboard");
   return { ok: true, data: undefined };
 }

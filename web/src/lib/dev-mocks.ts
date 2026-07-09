@@ -228,3 +228,34 @@ export function mockDeleteDeployment(workspaceId: string, deploymentId: string):
   deployments.splice(index, 1);
   return true;
 }
+
+export function mockBulkDeleteDeployments(
+  workspaceId: string,
+  deploymentIds: string[],
+): string[] {
+  const deployments = store.deployments[workspaceId];
+  if (!deployments) return [];
+  const idSet = new Set(deploymentIds);
+  const deleted: string[] = [];
+  store.deployments[workspaceId] = deployments.filter((d) => {
+    if (!idSet.has(d.id)) return true;
+    deleted.push(d.id);
+    return false;
+  });
+  return deleted;
+}
+
+export function mockDeleteWorkspace(
+  workspaceId: string,
+): { ok: true; data: undefined } | { ok: false; error: string } {
+  const index = store.workspaces.findIndex((w) => w.id === workspaceId);
+  if (index === -1) return { ok: false, error: "Workspace not found" };
+  const activeDeployments = store.deployments[workspaceId] ?? [];
+  if (activeDeployments.length > 0) {
+    return { ok: false, error: "Delete all deployments before deleting this agent" };
+  }
+  store.workspaces.splice(index, 1);
+  delete store.keys[workspaceId];
+  delete store.deployments[workspaceId];
+  return { ok: true, data: undefined };
+}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 
 import { ConnectionPanel } from "@/components/connection-panel";
+import { DeleteWorkspaceButton } from "@/components/delete-workspace-button";
 import { DeploymentsList } from "@/components/deployments-list";
 import { EditableSlug } from "@/components/editable-slug";
 import { getWorkspace, listApiKeys, listDeployments } from "@/lib/api";
@@ -37,6 +38,20 @@ export default async function WorkspaceDetailPage({
 
       <ConnectionPanel workspaceId={workspace.id} keys={keys} />
       <DeploymentsList workspaceId={workspace.id} deployments={deployments} />
+
+      <section className="flex items-center justify-between gap-4 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+        <div>
+          <h2 className="text-lg font-semibold">Danger zone</h2>
+          <p className="text-sm text-muted-foreground">
+            Permanently disconnect this agent. Requires all deployments to be
+            deleted first.
+          </p>
+        </div>
+        <DeleteWorkspaceButton
+          workspaceId={workspace.id}
+          workspaceName={workspace.name}
+        />
+      </section>
     </div>
   );
 }

@@ -19,6 +19,8 @@ from ..schemas import (
     ApiKeyCreate,
     ApiKeyCreated,
     ApiKeyResponse,
+    BulkDeleteDeploymentsRequest,
+    BulkDeleteDeploymentsResponse,
     DeploymentItem,
     WorkspaceCreate,
     WorkspaceResponse,
@@ -97,6 +99,22 @@ async def update_workspace(
     except workspace_service.WorkspaceSlugTakenError as error:
         raise HTTPException(409, f'Slug "{error}" is already taken') from error
     return _to_workspace_response(workspace)
+
+
+@router.delete("/workspaces/{workspace_id}", status_code=204)
+async def delete_workspace(
+    workspace_id: str,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Soft-deletes a workspace. Fails if it still has active deployments."""
+    workspace = await _owned_workspace(workspace_id, user, db)
+    try:
+        await workspace_service.delete_workspace(db, workspace)
+    except workspace_service.WorkspaceHasDeploymentsError:
+        raise HTTPException(
+            409, "Delete all deployments before deleting this workspace"
+        ) from None
 
 
 @router.post("/agents", response_model=AgentConnectResponse, status_code=201)
@@ -244,3 +262,24 @@ async def delete_deployment(
         await deployment_service.delete_deployment(db, context, deployment_id)
     except deployment_service.DeploymentNotFoundError:
         raise HTTPException(404, "Deployment not found") from None
+
+
+@router.post(
+    "/workspaces/{workspace_id}/deployments/bulk-delete",
+    response_model=BulkDeleteDeploymentsResponse,
+)
+async def bulk_delete_deployments(
+    workspace_id: str,
+    body: BulkDeleteDeploymentsRequest,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+) -> BulkDeleteDeploymentsResponse:
+    """Soft-deletes the given deployments in the workspace, skipping invalid IDs."""
+    workspace = await _owned_workspace(workspace_id, user, db)
+    context = WorkspaceContext(
+        workspace_id=str(workspace.id),
+        workspace_slug=workspace.slug,
+        api_key_id="",
+    )
+    deleted_ids = await deployment_service.delete_deployments(db, context, body.deployment_ids)
+    return BulkDeleteDeploymentsResponse(deleted_ids=deleted_ids)
