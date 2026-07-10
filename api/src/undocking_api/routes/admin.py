@@ -26,12 +26,13 @@ from ..schemas import (
     WorkspaceResponse,
     WorkspaceUpdate,
 )
+from ..proxy_auth import require_proxy_secret
 from ..services import api_keys as api_key_service
 from ..services import deployments as deployment_service
 from ..services import workspaces as workspace_service
 from ..session_auth import require_user
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_proxy_secret)])
 
 CurrentUser = Annotated[User, Depends(require_user)]
 

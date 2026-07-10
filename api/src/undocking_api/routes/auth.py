@@ -15,13 +15,14 @@ from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..oauth import enabled_providers, get_provider
+from ..proxy_auth import require_proxy_secret
 from ..schemas import ProviderList, UserResponse
 from ..services.users import upsert_user
 from ..session_auth import login_session, logout_session, require_user
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/auth", tags=["auth"], dependencies=[Depends(require_proxy_secret)])
 
 
 def _callback_uri(provider: str) -> str:

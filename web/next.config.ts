@@ -1,15 +1,8 @@
 import type { NextConfig } from "next";
 
-// In dev the browser talks only to the Next.js origin; /api/* is proxied to the
-// FastAPI backend so the session cookie stays first-party (no CORS). In
-// production, point API_PROXY_TARGET at the API or terminate both behind one
-// domain at the edge.
-const apiTarget = process.env.API_PROXY_TARGET ?? "http://localhost:8000";
-
-const nextConfig: NextConfig = {
-  async rewrites() {
-    return [{ source: "/api/:path*", destination: `${apiTarget}/:path*` }];
-  },
-};
+// The /api/* proxy to the FastAPI backend lives in middleware.ts (not here) —
+// it needs to attach a shared-secret header to the proxied request, which
+// next.config.ts rewrites can't do.
+const nextConfig: NextConfig = {};
 
 export default nextConfig;

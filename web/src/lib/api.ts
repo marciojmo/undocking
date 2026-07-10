@@ -69,6 +69,11 @@ export async function apiFetch(path: string, init?: RequestInit): Promise<Respon
   if (init?.body && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
+  // This call bypasses middleware.ts (it's the Next.js server's own outbound
+  // fetch, not a browser request hitting this server), so the proxy secret
+  // has to be attached here too — /admin and /auth require it once set.
+  const secret = process.env.PROXY_SHARED_SECRET;
+  if (secret) headers.set("X-Undocking-Proxy-Secret", secret);
   try {
     return await fetch(`${API_BASE}${path}`, { ...init, headers, cache: "no-store" });
   } catch {
