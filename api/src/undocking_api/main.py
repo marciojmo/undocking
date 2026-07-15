@@ -47,8 +47,13 @@ app.include_router(uploads_router)
 app.include_router(events_router)
 app.include_router(auth_router)
 app.include_router(admin_router)
-app.mount("/mcp", mcp.streamable_http_app())
 
-# Mounted last: its catch-all "/{workspace_slug}/{slug}" must not shadow the
-# /v1, /auth, /admin, and /mcp routes registered above.
+# Its catch-all "/{workspace_slug}/{slug}" must not shadow the /v1, /auth, and
+# /admin routes registered above.
 app.include_router(serve_router)
+
+# Mounted at the root (last, so every explicit route above wins) because the
+# MCP app registers its endpoint at exactly "/mcp". Mounting it at a sub-path
+# instead would 307-redirect the bare "/mcp" to "/mcp/", which many MCP
+# clients refuse to follow.
+app.mount("/", mcp.streamable_http_app())

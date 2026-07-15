@@ -28,31 +28,27 @@ function formatDate(value: string): string {
   });
 }
 
+/**
+ * Public origin of the FastAPI backend (no trailing slash). Agents must talk
+ * to the API directly — never through this dashboard's /api proxy — so the
+ * web origin is deliberately not a fallback here.
+ */
+function apiOrigin(): string {
+  const override = process.env.NEXT_PUBLIC_API_URL;
+  if (override) return override.replace(/\/$/, "");
+  return "http://localhost:8000";
+}
+
 /** Resolves the public MCP endpoint, preferring an explicit override. */
 function mcpUrl(): string {
   const override = process.env.NEXT_PUBLIC_MCP_URL;
   if (override) return override;
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/api/mcp`;
-  }
-  return "/api/mcp";
-}
-
-/** Resolves the public REST API base (no trailing slash). Override with NEXT_PUBLIC_API_URL. */
-function apiBaseUrl(): string {
-  const override = process.env.NEXT_PUBLIC_API_URL;
-  if (override) return override.replace(/\/$/, "");
-  const mcpOverride = process.env.NEXT_PUBLIC_MCP_URL;
-  if (mcpOverride) return mcpOverride.replace(/\/mcp\/?$/, "");
-  if (typeof window !== "undefined") {
-    return `${window.location.origin}/api`;
-  }
-  return "/api";
+  return `${apiOrigin()}/mcp`;
 }
 
 /** Builds a paste-ready setup prompt for an LLM agent. */
 function llmPrompt(key: string): string {
-  const api = apiBaseUrl();
+  const api = apiOrigin();
   const config = JSON.stringify(
     {
       mcpServers: {
@@ -66,7 +62,7 @@ function llmPrompt(key: string): string {
     null,
     2,
   );
-  return `Set up Undocking for me. Undocking publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON, SVG, and more) to public URLs via MCP or REST. API base: ${api}/v1
+  return `Set up Undocking for me. Undocking publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON, SVG, and more) to public URLs via MCP or REST. Both are served directly by the Undocking API at ${api} — always call that origin directly, never a dashboard/web URL. API base: ${api}/v1
 
 1. Add this MCP server to my configuration. Merge with existing \`mcpServers\` — do not remove other servers:
 
@@ -78,6 +74,8 @@ ${config}
    curl -s ${api}/v1/deployments -H "Authorization: Bearer ${key}"
 
 4. Publish a demo artifact using \`deploy_artifact\` with content_type "text/markdown" and content "# You're live on Undocking!". Report the public URL.
+
+From now on, use the \`undocking\` MCP server whenever I ask to publish, undock, deploy, or share an artifact.
 
 Auth for all REST calls: \`Authorization: Bearer ${key}\`
 Full guide (content types, presigned uploads, etc.): GET ${api}/v1/instructions`;

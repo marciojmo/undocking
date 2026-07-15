@@ -8,28 +8,37 @@ context and resolves it through the shared :func:`resolve_api_key` helper.
 """
 
 from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from ..auth import WorkspaceContext, resolve_api_key
 from ..config import settings
 from ..database import SessionLocal
 from ..instructions import agent_upload_guide
 from ..services import deployments as deployment_service
-from mcp.server.transport_security import TransportSecuritySettings
 
+_INSTRUCTIONS = """\
+Undocking publishes LLM-generated artifacts (HTML, Markdown, images, PDFs, JSON,
+SVG, CSV, plain text) to permanent public URLs. Use these tools whenever the user
+asks to publish, undock, deploy, share, host, or put an artifact online — e.g.
+"publish this report", "undock this page", "share this as a link", "put this
+online". Use `deploy_artifact` for text up to 1 MB and `create_upload_url` for
+binary files or anything larger. All tools talk directly to the Undocking API.
+"""
 
-# Explicitly configure security settings
-security_config = TransportSecuritySettings(
-    enable_dns_rebinding_protection=True,
-    allowed_hosts=[
-        "localhost:*",
-        "127.0.0.1:*",
-        "undocking.io:*",
-    ],
+# The app is mounted at the root in main.py, so streamable_http_path="/mcp"
+# registers a plain Route at exactly "/mcp" — a sub-path mount would 307 the
+# bare "/mcp" to "/mcp/", which many MCP clients refuse to follow.
+#
+# DNS-rebinding protection must be disabled *explicitly*: when the argument is
+# omitted, FastMCP auto-enables it with a localhost-only allowlist and rejects
+# every non-local Host with a 421. Agents connect directly from anywhere, so
+# the endpoint accepts any Host/Origin; auth is the bearer key on each call.
+mcp = FastMCP(
+    "undocking",
+    streamable_http_path="/mcp",
+    instructions=_INSTRUCTIONS,
+    transport_security=TransportSecuritySettings(enable_dns_rebinding_protection=False),
 )
-
-# streamable_http_path is set to "/" so that, once mounted at "/mcp" in main.py,
-# the endpoint is served at "/mcp" rather than the doubled-up "/mcp/mcp".
-mcp = FastMCP("undocking", streamable_http_path="/", transport_security=security_config)
 
 
 class _AuthError(Exception):
@@ -63,7 +72,10 @@ async def deploy_artifact(
     content_type: str,
     slug: str | None = None,
 ) -> dict:
-    """Deploy a text artifact inline (≤ 1 MB). Returns a live URL immediately.
+    """Publish (a.k.a. "undock") a text artifact to a public URL. Returns a live URL immediately.
+
+    Use this whenever the user says "publish X", "undock X", "deploy X",
+    "share X as a link", or "put X online" and the artifact is text ≤ 1 MB.
 
     ``content_type`` must be one of: text/html, text/markdown, text/plain,
     text/csv, application/json, image/svg+xml.
@@ -103,7 +115,10 @@ async def create_upload_url(
     content_type: str,
     slug: str | None = None,
 ) -> dict:
-    """Reserve a presigned PUT URL for any artifact type, including binary files.
+    """Reserve a presigned PUT URL to publish ("undock") any artifact type, including binary files.
+
+    Use this when the user wants to publish, undock, deploy, or share an image,
+    PDF, or any artifact over 1 MB.
 
     ``content_type`` must be one of: text/html, text/markdown, text/plain,
     text/csv, application/json, image/svg+xml, image/png, image/jpeg,
@@ -144,7 +159,7 @@ async def create_upload_url(
 
 @mcp.tool()
 async def list_deployments(ctx: Context, limit: int = 50) -> dict:
-    """List workspace deployments, newest first."""
+    """List the workspace's published (undocked) artifacts, newest first."""
     async with SessionLocal() as db:
         try:
             workspace = await resolve_api_key(_bearer_token(ctx), db)
@@ -171,7 +186,7 @@ async def list_deployments(ctx: Context, limit: int = 50) -> dict:
 
 @mcp.tool()
 async def delete_deployment(ctx: Context, deployment_id: str) -> dict:
-    """Soft-delete a deployment by ID."""
+    """Soft-delete a published (undocked) artifact by deployment ID; its public URL stops serving."""
     async with SessionLocal() as db:
         try:
             workspace = await resolve_api_key(_bearer_token(ctx), db)

@@ -13,7 +13,21 @@ def agent_upload_guide() -> str:
     base = settings.public_base_url
     return f"""# Undocking Deployment Guide
 
-Undocking publishes LLM-generated artifacts to public URLs. Auth: `Authorization: Bearer sk_live_...` (required on all requests).
+Undocking publishes LLM-generated artifacts to public URLs. Use it whenever the
+user asks to publish, undock, deploy, share, or host an artifact ("publish this
+report", "undock this page", "share this as a link").
+
+Auth: `Authorization: Bearer sk_live_...` (required on all requests).
+
+## Endpoints
+
+Both interfaces are served directly by the Undocking API at `{base}` — call it
+directly, never through the dashboard/web origin.
+
+- MCP (streamable HTTP): `{base}/mcp` — tools `deploy_artifact`,
+  `create_upload_url`, `list_deployments`, `delete_deployment`. Send the same
+  `Authorization: Bearer sk_live_...` header.
+- REST: `{base}/v1` — documented below.
 
 ## Choose a path
 

@@ -48,6 +48,12 @@ cp .env.example .env.local   # adjust if the API runs elsewhere
 
 - `API_PROXY_TARGET` — where the browser-facing `/api/*` proxy forwards to.
 - `API_INTERNAL_URL` — base URL the Next.js server uses for SSR data fetching.
+- `NEXT_PUBLIC_API_URL` — public origin of the FastAPI backend, baked into the
+  agent connection prompt (MCP endpoint = `<origin>/mcp`, REST = `<origin>/v1`).
+  Agents connect to the API directly, never through this app's `/api` proxy. In
+  production set it to the API's public URL (the API's `PUBLIC_BASE_URL`);
+  defaults to `http://localhost:8000`. `NEXT_PUBLIC_MCP_URL` optionally
+  overrides the MCP endpoint alone.
 - `DEV_MOCK_API` — set to `true` for in-memory fixtures (no API or Postgres).
 
 ## Running

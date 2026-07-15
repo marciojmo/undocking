@@ -126,8 +126,11 @@ unrelated keys, and is idempotent.
 The MCP server is mounted at `/mcp` using the streamable-HTTP transport and
 exposes four tools: `deploy_artifact`, `create_upload_url`, `list_deployments`,
 and `delete_deployment`. It authenticates with the same `sk_live_` bearer tokens
-as the REST API. The deploy guide is also exposed as the `how_to_deploy` prompt
-and the `undocking://guide/deploy` resource.
+as the REST API. Agents connect to the API origin directly (e.g.
+`https://<api-host>/mcp`) — not through the web dashboard's `/api` proxy — and
+the transport accepts requests from any host (no Host/Origin filtering). The
+deploy guide is also exposed as the `how_to_deploy` prompt and the
+`undocking://guide/deploy` resource.
 
 `deploy_artifact` takes inline `content` and is live immediately (`status:
 "deployed"`). `create_upload_url` reserves a presigned `upload_url` for large
